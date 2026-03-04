@@ -41,14 +41,15 @@ export function Header() {
   const { data: isAdmin } = useIsAdmin();
 
   return (
-    <header className="header-glass sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-7xl">
+    <header className="header-glass sticky top-0 z-50 overflow-visible">
+      <div className="container mx-auto px-4 h-20 flex items-center justify-between max-w-7xl overflow-visible">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <img
             src="/assets/uploads/28B1EC70-1184-4E4C-B7D6-40322E549502-1.png"
             alt="Omni Official Store"
-            className="h-12 w-auto object-contain"
+            style={{ height: "150px" }}
+            className="w-auto object-contain"
             onError={(e) => {
               const target = e.currentTarget;
               target.style.display = "none";
