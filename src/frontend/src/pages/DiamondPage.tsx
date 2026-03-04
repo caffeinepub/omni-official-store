@@ -32,9 +32,9 @@ const gameInfo: Record<
 
 function formatPrice(price: bigint): string {
   const num = Number(price);
-  return new Intl.NumberFormat("id-ID", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "IDR",
+    currency: "INR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(num);

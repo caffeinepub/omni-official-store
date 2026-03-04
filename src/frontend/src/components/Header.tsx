@@ -5,6 +5,7 @@ import {
   Diamond,
   Home,
   Menu,
+  ShieldCheck,
   ShoppingBag,
   Trophy,
   User,
@@ -14,6 +15,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
+import { useIsAdmin } from "../hooks/useQueries";
 
 const navLinks = [
   { to: "/", label: "Home", icon: Home, ocid: "nav.home.link" },
@@ -34,6 +36,7 @@ export function Header() {
   const location = useLocation();
   const isLoggedIn = loginStatus === "success";
   const isLoggingIn = loginStatus === "logging-in";
+  const { data: isAdmin } = useIsAdmin();
 
   return (
     <header className="header-glass sticky top-0 z-50">
@@ -78,6 +81,20 @@ export function Header() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              to="/admin"
+              data-ocid="nav.admin.link"
+              className={`nav-link px-3 py-2 rounded-md text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                location.pathname === "/admin"
+                  ? "text-accent bg-accent/10"
+                  : "text-accent/70 hover:text-accent hover:bg-accent/5"
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Admin
+            </Link>
+          )}
         </nav>
 
         {/* Desktop Auth */}
@@ -172,6 +189,21 @@ export function Header() {
                     </Link>
                   );
                 })}
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileOpen(false)}
+                    data-ocid="nav.admin.link"
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all duration-200 ${
+                      location.pathname === "/admin"
+                        ? "bg-accent/15 text-accent"
+                        : "text-accent/70 hover:bg-accent/10 hover:text-accent"
+                    }`}
+                  >
+                    <ShieldCheck className="w-5 h-5" />
+                    Admin
+                  </Link>
+                )}
               </nav>
 
               <div className="p-4 border-t border-border">

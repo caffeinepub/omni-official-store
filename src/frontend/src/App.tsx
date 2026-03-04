@@ -9,6 +9,7 @@ import {
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { AccountPage } from "./pages/AccountPage";
+import { AdminPage } from "./pages/AdminPage";
 import { DiamondPage } from "./pages/DiamondPage";
 import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
@@ -67,6 +68,12 @@ const accountRoute = createRoute({
   component: AccountPage,
 });
 
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminPage,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   gameDiamondRoute,
@@ -74,6 +81,7 @@ const routeTree = rootRoute.addChildren([
   ordersRoute,
   leaderboardRoute,
   accountRoute,
+  adminRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -13,18 +13,9 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const UserProfile = IDL.Record({
-  'name' : IDL.Text,
-  'email' : IDL.Opt(IDL.Text),
-});
-export const Game = IDL.Record({
-  'id' : IDL.Nat,
-  'name' : IDL.Text,
-  'description' : IDL.Text,
-});
-export const LeaderboardEntry = IDL.Record({
-  'user' : IDL.Principal,
-  'totalDiamonds' : IDL.Nat,
+export const PaymentMethod = IDL.Variant({
+  'upi' : IDL.Null,
+  'bank' : IDL.Null,
 });
 export const OrderStatus = IDL.Variant({
   'pending' : IDL.Null,
@@ -41,6 +32,40 @@ export const Order = IDL.Record({
   'timestamp' : Time,
   'packageId' : IDL.Nat,
 });
+export const RedeemCode = IDL.Record({
+  'redeemedBy' : IDL.Opt(IDL.Principal),
+  'code' : IDL.Text,
+  'redeemed' : IDL.Bool,
+  'createdAt' : Time,
+  'amount' : IDL.Nat,
+});
+export const TopUpRequestStatus = IDL.Variant({
+  'pending' : IDL.Null,
+  'approved' : IDL.Null,
+  'rejected' : IDL.Null,
+});
+export const TopUpRequest = IDL.Record({
+  'id' : IDL.Nat,
+  'status' : TopUpRequestStatus,
+  'paymentMethod' : PaymentMethod,
+  'createdAt' : Time,
+  'user' : IDL.Principal,
+  'amount' : IDL.Nat,
+  'utrRef' : IDL.Text,
+});
+export const UserProfile = IDL.Record({
+  'name' : IDL.Text,
+  'email' : IDL.Opt(IDL.Text),
+});
+export const Game = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+});
+export const LeaderboardEntry = IDL.Record({
+  'user' : IDL.Principal,
+  'totalDiamonds' : IDL.Nat,
+});
 export const DiamondPackage = IDL.Record({
   'id' : IDL.Nat,
   'diamondAmount' : IDL.Nat,
@@ -48,18 +73,37 @@ export const DiamondPackage = IDL.Record({
   'gameId' : IDL.Nat,
   'price' : IDL.Nat,
 });
+export const PaymentConfig = IDL.Record({
+  'ifscCode' : IDL.Opt(IDL.Text),
+  'bankName' : IDL.Opt(IDL.Text),
+  'upiId' : IDL.Opt(IDL.Text),
+  'accountNumber' : IDL.Opt(IDL.Text),
+  'accountHolder' : IDL.Opt(IDL.Text),
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addPackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
+  'approveTopUpRequest' : IDL.Func([IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'createTopUpRequest' : IDL.Func(
+      [IDL.Nat, PaymentMethod, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'creditWallet' : IDL.Func([IDL.Principal, IDL.Nat], [], []),
+  'generateRedeemCode' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Text], []),
+  'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'getAllRedeemCodes' : IDL.Func([], [IDL.Vec(RedeemCode)], ['query']),
+  'getAllTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGames' : IDL.Func([], [IDL.Vec(Game)], ['query']),
   'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
+  'getMyTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
   'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
   'getPackages' : IDL.Func([IDL.Nat], [IDL.Vec(DiamondPackage)], ['query']),
+  'getPaymentConfig' : IDL.Func([], [IDL.Opt(PaymentConfig)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
@@ -68,8 +112,13 @@ export const idlService = IDL.Service({
   'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'placeOrder' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
+  'redeemCode' : IDL.Func([IDL.Text], [IDL.Nat], []),
+  'rejectTopUpRequest' : IDL.Func([IDL.Nat], [], []),
+  'removePackage' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'setPaymentConfig' : IDL.Func([PaymentConfig], [], []),
   'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
+  'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
 });
 
 export const idlInitArgs = [];
@@ -80,19 +129,7 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
-  const UserProfile = IDL.Record({
-    'name' : IDL.Text,
-    'email' : IDL.Opt(IDL.Text),
-  });
-  const Game = IDL.Record({
-    'id' : IDL.Nat,
-    'name' : IDL.Text,
-    'description' : IDL.Text,
-  });
-  const LeaderboardEntry = IDL.Record({
-    'user' : IDL.Principal,
-    'totalDiamonds' : IDL.Nat,
-  });
+  const PaymentMethod = IDL.Variant({ 'upi' : IDL.Null, 'bank' : IDL.Null });
   const OrderStatus = IDL.Variant({
     'pending' : IDL.Null,
     'completed' : IDL.Null,
@@ -108,12 +145,53 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : Time,
     'packageId' : IDL.Nat,
   });
+  const RedeemCode = IDL.Record({
+    'redeemedBy' : IDL.Opt(IDL.Principal),
+    'code' : IDL.Text,
+    'redeemed' : IDL.Bool,
+    'createdAt' : Time,
+    'amount' : IDL.Nat,
+  });
+  const TopUpRequestStatus = IDL.Variant({
+    'pending' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const TopUpRequest = IDL.Record({
+    'id' : IDL.Nat,
+    'status' : TopUpRequestStatus,
+    'paymentMethod' : PaymentMethod,
+    'createdAt' : Time,
+    'user' : IDL.Principal,
+    'amount' : IDL.Nat,
+    'utrRef' : IDL.Text,
+  });
+  const UserProfile = IDL.Record({
+    'name' : IDL.Text,
+    'email' : IDL.Opt(IDL.Text),
+  });
+  const Game = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+  });
+  const LeaderboardEntry = IDL.Record({
+    'user' : IDL.Principal,
+    'totalDiamonds' : IDL.Nat,
+  });
   const DiamondPackage = IDL.Record({
     'id' : IDL.Nat,
     'diamondAmount' : IDL.Nat,
     'name' : IDL.Text,
     'gameId' : IDL.Nat,
     'price' : IDL.Nat,
+  });
+  const PaymentConfig = IDL.Record({
+    'ifscCode' : IDL.Opt(IDL.Text),
+    'bankName' : IDL.Opt(IDL.Text),
+    'upiId' : IDL.Opt(IDL.Text),
+    'accountNumber' : IDL.Opt(IDL.Text),
+    'accountHolder' : IDL.Opt(IDL.Text),
   });
   
   return IDL.Service({
@@ -123,14 +201,26 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'approveTopUpRequest' : IDL.Func([IDL.Nat], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'createTopUpRequest' : IDL.Func(
+        [IDL.Nat, PaymentMethod, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'creditWallet' : IDL.Func([IDL.Principal, IDL.Nat], [], []),
+    'generateRedeemCode' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Text], []),
+    'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'getAllRedeemCodes' : IDL.Func([], [IDL.Vec(RedeemCode)], ['query']),
+    'getAllTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getGames' : IDL.Func([], [IDL.Vec(Game)], ['query']),
     'getLeaderboard' : IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
+    'getMyTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
     'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
     'getPackages' : IDL.Func([IDL.Nat], [IDL.Vec(DiamondPackage)], ['query']),
+    'getPaymentConfig' : IDL.Func([], [IDL.Opt(PaymentConfig)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
@@ -139,8 +229,13 @@ export const idlFactory = ({ IDL }) => {
     'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'placeOrder' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
+    'redeemCode' : IDL.Func([IDL.Text], [IDL.Nat], []),
+    'rejectTopUpRequest' : IDL.Func([IDL.Nat], [], []),
+    'removePackage' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'setPaymentConfig' : IDL.Func([PaymentConfig], [], []),
     'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
+    'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
   });
 };
 

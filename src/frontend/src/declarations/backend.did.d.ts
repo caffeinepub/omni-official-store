@@ -34,7 +34,35 @@ export interface Order {
 export type OrderStatus = { 'pending' : null } |
   { 'completed' : null } |
   { 'failed' : null };
+export interface PaymentConfig {
+  'ifscCode' : [] | [string],
+  'bankName' : [] | [string],
+  'upiId' : [] | [string],
+  'accountNumber' : [] | [string],
+  'accountHolder' : [] | [string],
+}
+export type PaymentMethod = { 'upi' : null } |
+  { 'bank' : null };
+export interface RedeemCode {
+  'redeemedBy' : [] | [Principal],
+  'code' : string,
+  'redeemed' : boolean,
+  'createdAt' : Time,
+  'amount' : bigint,
+}
 export type Time = bigint;
+export interface TopUpRequest {
+  'id' : bigint,
+  'status' : TopUpRequestStatus,
+  'paymentMethod' : PaymentMethod,
+  'createdAt' : Time,
+  'user' : Principal,
+  'amount' : bigint,
+  'utrRef' : string,
+}
+export type TopUpRequestStatus = { 'pending' : null } |
+  { 'approved' : null } |
+  { 'rejected' : null };
 export interface UserProfile { 'name' : string, 'email' : [] | [string] }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
@@ -42,20 +70,33 @@ export type UserRole = { 'admin' : null } |
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addPackage' : ActorMethod<[bigint, string, bigint, bigint], bigint>,
+  'approveTopUpRequest' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'createTopUpRequest' : ActorMethod<[bigint, PaymentMethod, string], bigint>,
   'creditWallet' : ActorMethod<[Principal, bigint], undefined>,
+  'generateRedeemCode' : ActorMethod<[bigint, bigint], string>,
+  'getAllOrders' : ActorMethod<[], Array<Order>>,
+  'getAllRedeemCodes' : ActorMethod<[], Array<RedeemCode>>,
+  'getAllTopUpRequests' : ActorMethod<[], Array<TopUpRequest>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGames' : ActorMethod<[], Array<Game>>,
   'getLeaderboard' : ActorMethod<[], Array<LeaderboardEntry>>,
+  'getMyTopUpRequests' : ActorMethod<[], Array<TopUpRequest>>,
   'getOrders' : ActorMethod<[], Array<Order>>,
   'getPackages' : ActorMethod<[bigint], Array<DiamondPackage>>,
+  'getPaymentConfig' : ActorMethod<[], [] | [PaymentConfig]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'getWalletBalance' : ActorMethod<[], bigint>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'placeOrder' : ActorMethod<[string, bigint, bigint], bigint>,
+  'redeemCode' : ActorMethod<[string], bigint>,
+  'rejectTopUpRequest' : ActorMethod<[bigint], undefined>,
+  'removePackage' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'setPaymentConfig' : ActorMethod<[PaymentConfig], undefined>,
   'updateOrderStatus' : ActorMethod<[bigint, OrderStatus], undefined>,
+  'updatePackage' : ActorMethod<[bigint, string, bigint, bigint], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
