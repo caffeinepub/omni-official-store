@@ -42,13 +42,13 @@ export function Header() {
 
   return (
     <header className="header-glass sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-28 flex items-center justify-between max-w-7xl">
+      <div className="container mx-auto px-4 h-[360px] flex items-center justify-between max-w-7xl">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <img
             src="/assets/uploads/28B1EC70-1184-4E4C-B7D6-40322E549502-1.png"
             alt="Omni Official Store"
-            className="h-28 w-auto object-contain"
+            className="h-[360px] w-auto object-contain"
             onError={(e) => {
               const target = e.currentTarget;
               target.style.display = "none";
