@@ -77,6 +77,7 @@ import {
   useUpdateOrderStatus,
   useUpdatePackage,
 } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1614,7 +1615,7 @@ export function AdminPage() {
             Please log in to access the admin panel
           </p>
           <Button
-            onClick={login}
+            onClick={() => handleLogin(login)}
             disabled={isLoggingIn}
             className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
             data-ocid="auth.login.button"

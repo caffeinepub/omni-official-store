@@ -13,6 +13,7 @@ import {
   useGetCallerUserProfile,
   useSaveCallerUserProfile,
 } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 export function AccountPage() {
   const { loginStatus, login, clear, identity, isLoggingIn } =
@@ -70,7 +71,7 @@ export function AccountPage() {
           </p>
           <Button
             className="w-full gradient-blue-gold text-white font-bold border-0 glow-blue h-11"
-            onClick={login}
+            onClick={() => handleLogin(login)}
             disabled={isLoggingIn}
             data-ocid="auth.login.button"
           >

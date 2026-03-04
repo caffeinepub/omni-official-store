@@ -13,6 +13,7 @@ import { motion } from "motion/react";
 import { OrderStatus } from "../backend.d";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetOrders } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 const gameNames: Record<string, string> = {
   "1": "Mobile Legends: Bang Bang",
@@ -73,7 +74,7 @@ export function OrdersPage() {
             Please login to view your orders
           </p>
           <Button
-            onClick={login}
+            onClick={() => handleLogin(login)}
             data-ocid="auth.login.button"
             className="gradient-blue-gold text-white font-bold border-0"
           >

@@ -28,6 +28,7 @@ import {
   useGetWalletBalance,
   useRedeemCode,
 } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -436,10 +437,23 @@ function AddFundsSection() {
                         </p>
                       </div>
                     ) : selectedMethod === PaymentMethod.upi ? (
-                      <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/25 space-y-2">
+                      <div className="p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/25 space-y-3">
                         <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">
                           UPI Payment Details
                         </p>
+                        {/* QR Code */}
+                        <div className="flex flex-col items-center gap-2 py-2">
+                          <div className="bg-white rounded-xl p-3 shadow-md inline-block">
+                            <img
+                              src="/assets/uploads/IMG_1734-1.jpeg"
+                              alt="UPI QR Code - Omni King"
+                              className="w-48 h-48 object-contain rounded-lg"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground font-semibold">
+                            Scan with any UPI app to pay
+                          </p>
+                        </div>
                         <div>
                           <p className="text-xs text-muted-foreground">
                             UPI ID
@@ -449,11 +463,11 @@ function AddFundsSection() {
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Send exactly{" "}
+                          Scan the QR code or send exactly{" "}
                           <strong className="text-foreground">
                             ₹{effectiveAmount.toLocaleString("en-IN")}
                           </strong>{" "}
-                          to this UPI ID and enter the UTR number below.
+                          to the UPI ID above, then enter the UTR number below.
                         </p>
                       </div>
                     ) : (
@@ -709,7 +723,7 @@ export function WalletPage() {
             Please login to view your wallet balance
           </p>
           <Button
-            onClick={login}
+            onClick={() => handleLogin(login)}
             data-ocid="auth.login.button"
             className="gradient-blue-gold text-white font-bold border-0"
           >

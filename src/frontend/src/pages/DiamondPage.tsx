@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import type { DiamondPackage } from "../backend.d";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useGetPackages, usePlaceOrder } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 const gameInfo: Record<
   string,
@@ -150,7 +151,7 @@ export function DiamondPage() {
             </div>
             <Button
               size="sm"
-              onClick={login}
+              onClick={() => handleLogin(login)}
               data-ocid="auth.login.button"
               className="gradient-blue-gold text-white font-bold border-0"
             >

@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import { useIsAdmin } from "../hooks/useQueries";
+import { handleLogin } from "../utils/mobileLogin";
 
 const navLinks = [
   { to: "/", label: "Home", icon: Home, ocid: "nav.home.link" },
@@ -112,7 +113,7 @@ export function Header() {
           ) : (
             <Button
               size="sm"
-              onClick={login}
+              onClick={() => handleLogin(login)}
               disabled={isLoggingIn}
               data-ocid="auth.login.button"
               className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
@@ -223,7 +224,7 @@ export function Header() {
                   <Button
                     className="w-full gradient-blue-gold text-white font-bold border-0"
                     onClick={() => {
-                      login();
+                      handleLogin(login);
                       setMobileOpen(false);
                     }}
                     disabled={isLoggingIn}
