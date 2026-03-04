@@ -2,15 +2,19 @@ import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { backendInterface } from "../backend";
 import type {
+  Banner,
   DiamondPackage,
+  Game,
   LeaderboardEntry,
   Order,
   OrderStatus,
   PaymentConfig,
   PaymentMethod,
   RedeemCode,
+  SiteConfig,
   TopUpRequest,
   UserProfile,
+  UserStats,
 } from "../backend.d";
 import { useActor } from "./useActor";
 import { useInternetIdentity } from "./useInternetIdentity";
@@ -444,5 +448,215 @@ export function useSetPaymentConfig() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["paymentConfig"] });
     },
+  });
+}
+
+// ─── Games Hooks ──────────────────────────────────────────────────────────────
+
+export function useGetGames() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Game[]>({
+    queryKey: ["games"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getGames();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddGame() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      name,
+      description,
+      currency,
+    }: {
+      name: string;
+      description: string;
+      currency: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addGame(name, description, currency);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+    },
+  });
+}
+
+export function useUpdateGame() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      gameId,
+      name,
+      description,
+      currency,
+      inStock,
+    }: {
+      gameId: bigint;
+      name: string;
+      description: string;
+      currency: string;
+      inStock: boolean;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateGame(gameId, name, description, currency, inStock);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+    },
+  });
+}
+
+export function useRemoveGame() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (gameId: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.removeGame(gameId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["games"] });
+    },
+  });
+}
+
+// ─── Banners Hooks ────────────────────────────────────────────────────────────
+
+export function useGetBanners() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Banner[]>({
+    queryKey: ["banners"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getBanners();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddBanner() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      imageUrl,
+      title,
+      subtitle,
+      ctaText,
+      ctaLink,
+    }: {
+      imageUrl: string;
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaLink: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addBanner(imageUrl, title, subtitle, ctaText, ctaLink);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["banners"] });
+      queryClient.invalidateQueries({ queryKey: ["siteConfig"] });
+    },
+  });
+}
+
+export function useUpdateBanner() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      bannerId,
+      imageUrl,
+      title,
+      subtitle,
+      ctaText,
+      ctaLink,
+    }: {
+      bannerId: bigint;
+      imageUrl: string;
+      title: string;
+      subtitle: string;
+      ctaText: string;
+      ctaLink: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateBanner(
+        bannerId,
+        imageUrl,
+        title,
+        subtitle,
+        ctaText,
+        ctaLink,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["banners"] });
+      queryClient.invalidateQueries({ queryKey: ["siteConfig"] });
+    },
+  });
+}
+
+export function useRemoveBanner() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bannerId: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.removeBanner(bannerId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["banners"] });
+      queryClient.invalidateQueries({ queryKey: ["siteConfig"] });
+    },
+  });
+}
+
+// ─── Site Config Hooks ────────────────────────────────────────────────────────
+
+export function useGetSiteConfig() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SiteConfig | null>({
+    queryKey: ["siteConfig"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getSiteConfig();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSetSiteConfig() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (newConfig: SiteConfig) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.setSiteConfig(newConfig);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["siteConfig"] });
+    },
+  });
+}
+
+// ─── User Stats Hook ──────────────────────────────────────────────────────────
+
+export function useGetUserStats() {
+  const { actor, isFetching } = useActor();
+  return useQuery<UserStats | null>({
+    queryKey: ["userStats"],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getUserStats();
+    },
+    enabled: !!actor && !isFetching,
   });
 }

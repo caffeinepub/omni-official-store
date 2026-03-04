@@ -12,9 +12,9 @@ import Char "mo:core/Char";
 
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
   // Initialize the user system state
   let accessControlState = AccessControl.initState();
@@ -30,6 +30,8 @@ actor {
     id : Nat;
     name : Text;
     description : Text;
+    currency : Text;
+    inStock : Bool;
   };
 
   public type DiamondPackage = {
@@ -106,10 +108,47 @@ actor {
     createdAt : Time.Time;
   };
 
+  // -- NEW TYPES --
+
+  public type Banner = {
+    id : Nat;
+    imageUrl : Text;
+    title : Text;
+    subtitle : Text;
+    ctaText : Text;
+    ctaLink : Text;
+  };
+
+  public type SiteConfig = {
+    siteName : Text;
+    tagline : Text;
+    logoUrl : Text;
+    featuredSectionHeading : Text;
+    footerText : Text;
+    discountPercent : Nat;
+    promoText : Text;
+    primaryColor : Text;
+    backgroundColor : Text;
+    banners : [Banner];
+  };
+
+  public type UserStats = {
+    totalUsers : Nat;
+    usersThisMonth : Nat;
+    activeCustomers : Nat;
+    totalOrders : Nat;
+    pendingOrders : Nat;
+    completedOrders : Nat;
+    totalRevenue : Nat;
+    pendingTopUps : Nat;
+  };
+
   // Persistent state stores
   var nextOrderId = 1;
   var nextPackageId = 1;
   var nextTopUpRequestId = 1;
+  var nextGameId = 3; // Starts at 3 after seeded games (MLBB, HOK)
+  var nextBannerId = 1;
 
   let userProfiles = Map.empty<Principal, UserProfile>();
   let games = Map.empty<Nat, Game>();
@@ -119,8 +158,22 @@ actor {
   let diamondsPurchased = Map.empty<Principal, Nat>();
   let redeemCodes = Map.empty<Text, RedeemCode>();
   let topUpRequests = Map.empty<Nat, TopUpRequest>();
+  let banners = Map.empty<Nat, Banner>();
+  let userRegistrations = Map.empty<Principal, Time.Time>();
 
   var paymentConfig : ?PaymentConfig = null;
+  var siteConfig : SiteConfig = {
+    siteName = "Omni Official Store";
+    tagline = "Instant Top-Ups for Your Favorite Games";
+    logoUrl = "";
+    featuredSectionHeading = "Featured Packs";
+    footerText = "© Omni Official Store 2024";
+    discountPercent = 0;
+    promoText = " ";
+    primaryColor = "#3fbdf1";
+    backgroundColor = "#151717";
+    banners = [];
+  };
 
   // Returns all available games
   public query ({ caller }) func getGames() : async [Game] {
@@ -158,6 +211,12 @@ actor {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
     userProfiles.add(caller, profile);
+
+    // Register the user if not already registered
+    if (not userRegistrations.containsKey(caller)) {
+      userRegistrations.add(caller, Time.now());
+      wallets.add(caller, 0); // Ensure wallet entry exists
+    };
   };
 
   // Returns only the caller's orders
@@ -333,7 +392,7 @@ actor {
     wallets.add(user, currentBalance + amount);
   };
 
-  // RedeemCode System
+  // --- REDEEM CODE SYSTEM ---
 
   func randomNat(upperBound : Nat) : Nat {
     let timestamp : Time.Time = Time.now();
@@ -450,9 +509,6 @@ actor {
   };
 
   public query ({ caller }) func getPaymentConfig() : async ?PaymentConfig {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view payment config");
-    };
     paymentConfig;
   };
 
@@ -556,5 +612,185 @@ actor {
       status = #rejected;
     };
     topUpRequests.add(requestId, updatedRequest);
+  };
+
+  // --- ADMIN GAME MANAGEMENT
+
+  public shared ({ caller }) func addGame(name : Text, description : Text, currency : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add games");
+    };
+
+    let gameId = nextGameId;
+    nextGameId += 1;
+
+    let game : Game = {
+      id = gameId;
+      name;
+      description;
+      currency;
+      inStock = true;
+    };
+
+    games.add(gameId, game);
+    gameId;
+  };
+
+  public shared ({ caller }) func updateGame(gameId : Nat, name : Text, description : Text, currency : Text, inStock : Bool) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update games");
+    };
+
+    switch (games.get(gameId)) {
+      case (null) { Runtime.trap("Game not found") };
+      case (?existingGame) {
+        let updatedGame : Game = {
+          id = existingGame.id;
+          name;
+          description;
+          currency;
+          inStock;
+        };
+        games.add(gameId, updatedGame);
+      };
+    };
+  };
+
+  public shared ({ caller }) func removeGame(gameId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can remove games");
+    };
+
+    if (not games.containsKey(gameId)) {
+      Runtime.trap("Game not found");
+    };
+
+    games.remove(gameId);
+  };
+
+  // --- SITE CONFIG & HOME PAGE DATA ---
+
+  public shared ({ caller }) func setSiteConfig(newConfig : SiteConfig) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can set site config");
+    };
+    siteConfig := newConfig;
+  };
+
+  public query ({ caller }) func getSiteConfig() : async ?SiteConfig {
+    ?siteConfig;
+  };
+
+  public query ({ caller }) func getBanners() : async [Banner] {
+    banners.values().toArray();
+  };
+
+  public shared ({ caller }) func addBanner(imageUrl : Text, title : Text, subtitle : Text, ctaText : Text, ctaLink : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can add banners");
+    };
+
+    let bannerId = nextBannerId;
+    nextBannerId += 1;
+
+    let banner : Banner = {
+      id = bannerId;
+      imageUrl;
+      title;
+      subtitle;
+      ctaText;
+      ctaLink;
+    };
+
+    banners.add(bannerId, banner);
+    bannerId;
+  };
+
+  public shared ({ caller }) func updateBanner(bannerId : Nat, imageUrl : Text, title : Text, subtitle : Text, ctaText : Text, ctaLink : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can update banners");
+    };
+
+    switch (banners.get(bannerId)) {
+      case (null) { Runtime.trap("Banner not found") };
+      case (?existingBanner) {
+        let updatedBanner : Banner = {
+          id = existingBanner.id;
+          imageUrl;
+          title;
+          subtitle;
+          ctaText;
+          ctaLink;
+        };
+        banners.add(bannerId, updatedBanner);
+      };
+    };
+  };
+
+  public shared ({ caller }) func removeBanner(bannerId : Nat) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can remove banners");
+    };
+
+    if (not banners.containsKey(bannerId)) {
+      Runtime.trap("Banner not found");
+    };
+
+    banners.remove(bannerId);
+  };
+
+  // --- ADMIN STATS ENDPOINTS ---
+
+  public query ({ caller }) func getUserStats() : async UserStats {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Runtime.trap("Unauthorized: Only admins can view stats");
+    };
+
+    let now = Time.now();
+    let THIRTY_DAYS_NS : Int = 30 * 24 * 60 * 60 * 1_000_000_000;
+    let thirtyDaysAgo = now - THIRTY_DAYS_NS;
+    var usersThisMonth = 0;
+    var activeCustomers = 0;
+
+    for ((_, regTime) in userRegistrations.entries()) {
+      if (regTime >= thirtyDaysAgo) { usersThisMonth += 1 };
+    };
+
+    for ((user, _) in userProfiles.entries()) {
+      if (orders.values().toArray().find(func(order) { order.user == user }) != null) {
+        activeCustomers += 1;
+      };
+    };
+
+    var pendingOrders = 0;
+    var completedOrders = 0;
+    var totalRevenue = 0;
+
+    for ((_, order) in orders.entries()) {
+      if (order.status == #pending) { pendingOrders += 1 };
+      if (order.status == #completed) {
+        completedOrders += 1;
+        switch (packages.get(order.packageId)) {
+          case (?pkg) { totalRevenue += pkg.price };
+          case (null) {};
+        };
+      };
+    };
+
+    var pendingTopUps = 0;
+    for ((_, req) in topUpRequests.entries()) {
+      if (req.status == #pending) { pendingTopUps += 1 };
+    };
+
+    {
+      totalUsers = userProfiles.size();
+      usersThisMonth;
+      activeCustomers;
+      totalOrders = orders.size();
+      pendingOrders;
+      completedOrders;
+      totalRevenue;
+      pendingTopUps;
+    };
   };
 };

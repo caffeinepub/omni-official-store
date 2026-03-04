@@ -7,40 +7,106 @@ import {
   Gem,
   Home,
   ShoppingBag,
+  Tag,
   Trophy,
   User,
   Wallet,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
+import type { Banner, Game } from "../backend.d";
+import {
+  useGetBanners,
+  useGetGames,
+  useGetSiteConfig,
+} from "../hooks/useQueries";
 
-const banners = [
+// ─── Static fallbacks ────────────────────────────────────────────────────────
+
+const STATIC_BANNERS = [
   {
-    src: "/assets/generated/banner-mlbb.dim_1200x400.jpg",
+    id: "static-1",
+    imageUrl: "/assets/generated/banner-mlbb.dim_1200x400.jpg",
     alt: "Mobile Legends Bang Bang",
     title: "Mobile Legends",
     subtitle: "Top up Diamonds & dominate the battlefield",
-    cta: "Top Up MLBB",
-    link: "/game/mlbb",
+    ctaText: "Top Up MLBB",
+    ctaLink: "/game/mlbb",
     gradient: "from-blue-950/70 via-blue-900/40 to-transparent",
   },
   {
-    src: "/assets/generated/banner-hok.dim_1200x400.jpg",
+    id: "static-2",
+    imageUrl: "/assets/generated/banner-hok.dim_1200x400.jpg",
     alt: "Honor of Kings",
     title: "Honor of Kings",
     subtitle: "Get Diamonds & become a legendary warrior",
-    cta: "Top Up HOK",
-    link: "/game/hok",
+    ctaText: "Top Up HOK",
+    ctaLink: "/game/hok",
     gradient: "from-red-950/70 via-red-900/40 to-transparent",
   },
   {
-    src: "/assets/generated/banner-promo.dim_1200x400.jpg",
+    id: "static-3",
+    imageUrl: "/assets/generated/banner-promo.dim_1200x400.jpg",
     alt: "Special Promotions",
     title: "Special Offers",
     subtitle: "Best rates for diamond top-ups — every day",
-    cta: "Shop Now",
-    link: "/",
+    ctaText: "Shop Now",
+    ctaLink: "/",
     gradient: "from-violet-950/70 via-violet-900/40 to-transparent",
+  },
+];
+
+const STATIC_GAMES = [
+  {
+    id: "1",
+    slug: "mlbb",
+    name: "Mobile Legends: Bang Bang",
+    subtitle: "Top up Diamonds instantly",
+    image: "/assets/generated/game-mlbb.dim_400x300.jpg",
+    link: "/game/mlbb",
+    ocid: "game.mlbb.button",
+    color: "from-blue-600/20 to-indigo-800/20",
+    border: "hover:border-blue-500/60",
+    badge: "MLBB",
+  },
+  {
+    id: "2",
+    slug: "hok",
+    name: "Honor of Kings",
+    subtitle: "Top up Diamonds instantly",
+    image: "/assets/generated/game-hok.dim_400x300.jpg",
+    link: "/game/hok",
+    ocid: "game.hok.button",
+    color: "from-red-600/20 to-amber-800/20",
+    border: "hover:border-amber-500/60",
+    badge: "HOK",
+  },
+];
+
+const GRADIENT_CLASSES = [
+  "from-blue-950/70 via-blue-900/40 to-transparent",
+  "from-red-950/70 via-red-900/40 to-transparent",
+  "from-violet-950/70 via-violet-900/40 to-transparent",
+  "from-emerald-950/70 via-emerald-900/40 to-transparent",
+  "from-amber-950/70 via-amber-900/40 to-transparent",
+];
+
+const GAME_COLORS = [
+  {
+    color: "from-blue-600/20 to-indigo-800/20",
+    border: "hover:border-blue-500/60",
+  },
+  {
+    color: "from-red-600/20 to-amber-800/20",
+    border: "hover:border-amber-500/60",
+  },
+  {
+    color: "from-emerald-600/20 to-teal-800/20",
+    border: "hover:border-emerald-500/60",
+  },
+  {
+    color: "from-purple-600/20 to-indigo-800/20",
+    border: "hover:border-purple-500/60",
   },
 ];
 
@@ -72,44 +138,118 @@ const quickNavLinks = [
   },
 ];
 
-const featuredGames = [
-  {
-    id: "mlbb",
-    name: "Mobile Legends: Bang Bang",
-    subtitle: "Top up Diamonds instantly",
-    image: "/assets/generated/game-mlbb.dim_400x300.jpg",
-    link: "/game/mlbb",
-    ocid: "game.mlbb.button",
-    color: "from-blue-600/20 to-indigo-800/20",
-    border: "hover:border-blue-500/60",
-    badge: "MLBB",
-  },
-  {
-    id: "hok",
-    name: "Honor of Kings",
-    subtitle: "Top up Diamonds instantly",
-    image: "/assets/generated/game-hok.dim_400x300.jpg",
-    link: "/game/hok",
-    ocid: "game.hok.button",
-    color: "from-red-600/20 to-amber-800/20",
-    border: "hover:border-amber-500/60",
-    badge: "HOK",
-  },
-];
+// ─── Normalise backend banner to unified shape ────────────────────────────────
+
+type NormalisedBanner = {
+  id: string;
+  imageUrl: string;
+  alt: string;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  ctaLink: string;
+  gradient: string;
+};
+
+function normaliseBanner(b: Banner, index: number): NormalisedBanner {
+  return {
+    id: b.id.toString(),
+    imageUrl: b.imageUrl,
+    alt: b.title,
+    title: b.title,
+    subtitle: b.subtitle,
+    ctaText: b.ctaText,
+    ctaLink: b.ctaLink,
+    gradient: GRADIENT_CLASSES[index % GRADIENT_CLASSES.length],
+  };
+}
+
+type NormalisedGame = {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle: string;
+  image: string;
+  link: string;
+  ocid: string;
+  color: string;
+  border: string;
+  badge: string;
+  inStock: boolean;
+};
+
+function normaliseGame(g: Game, index: number): NormalisedGame {
+  // Map known game IDs to existing slugs/images
+  const knownGames: Record<
+    string,
+    { slug: string; image: string; badge: string }
+  > = {
+    "1": {
+      slug: "mlbb",
+      image: "/assets/generated/game-mlbb.dim_400x300.jpg",
+      badge: "MLBB",
+    },
+    "2": {
+      slug: "hok",
+      image: "/assets/generated/game-hok.dim_400x300.jpg",
+      badge: "HOK",
+    },
+  };
+  const known = knownGames[g.id.toString()];
+  const { color, border } = GAME_COLORS[index % GAME_COLORS.length];
+  return {
+    id: g.id.toString(),
+    slug: known?.slug ?? `game-${g.id}`,
+    name: g.name,
+    subtitle: g.description || `Top up ${g.currency} instantly`,
+    image: known?.image ?? "/assets/generated/game-mlbb.dim_400x300.jpg",
+    link: `/game/${known?.slug ?? `game-${g.id}`}`,
+    ocid: `game.item.${index + 1}.button`,
+    color,
+    border,
+    badge: known?.badge ?? g.currency,
+    inStock: g.inStock,
+  };
+}
+
+// ─── HomePage ─────────────────────────────────────────────────────────────────
 
 export function HomePage() {
   const [currentBanner, setCurrentBanner] = useState(0);
   const [direction, setDirection] = useState(1);
 
+  const { data: backendBanners } = useGetBanners();
+  const { data: backendGames } = useGetGames();
+  const { data: siteConfig } = useGetSiteConfig();
+
+  // Derive active data: prefer backend data, fall back to static
+  const banners: NormalisedBanner[] =
+    backendBanners && backendBanners.length > 0
+      ? backendBanners.map(normaliseBanner)
+      : STATIC_BANNERS;
+
+  const games: NormalisedGame[] =
+    backendGames && backendGames.length > 0
+      ? backendGames.map(normaliseGame)
+      : STATIC_GAMES.map((g, i) => ({
+          ...g,
+          inStock: true,
+          ocid: `game.item.${i + 1}.button`,
+        }));
+
+  const featuredHeading =
+    siteConfig?.featuredSectionHeading || "Featured Games";
+  const promoText = siteConfig?.promoText || "";
+
   const next = useCallback(() => {
     setDirection(1);
     setCurrentBanner((prev) => (prev + 1) % banners.length);
-  }, []);
+  }, [banners.length]);
 
   const prev = useCallback(() => {
     setDirection(-1);
     setCurrentBanner((prev) => (prev - 1 + banners.length) % banners.length);
-  }, []);
+  }, [banners.length]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -118,6 +258,11 @@ export function HomePage() {
     },
     [currentBanner],
   );
+
+  // Reset index if banners change and index is out of range
+  useEffect(() => {
+    setCurrentBanner((prev) => (prev >= banners.length ? 0 : prev));
+  }, [banners.length]);
 
   useEffect(() => {
     const timer = setInterval(next, 4000);
@@ -139,6 +284,8 @@ export function HomePage() {
     }),
   };
 
+  const activeBanner = banners[currentBanner] ?? banners[0];
+
   return (
     <div className="min-h-screen">
       {/* ─── Banner Carousel ─────────────────────────────────── */}
@@ -159,13 +306,13 @@ export function HomePage() {
               className="absolute inset-0"
             >
               <img
-                src={banners[currentBanner].src}
-                alt={banners[currentBanner].alt}
+                src={activeBanner.imageUrl}
+                alt={activeBanner.alt}
                 className="w-full h-full object-cover"
               />
               {/* Gradient overlay */}
               <div
-                className={`absolute inset-0 bg-gradient-to-r ${banners[currentBanner].gradient}`}
+                className={`absolute inset-0 bg-gradient-to-r ${activeBanner.gradient}`}
               />
 
               {/* Banner content */}
@@ -177,19 +324,21 @@ export function HomePage() {
                   className="max-w-md"
                 >
                   <h2 className="font-display text-2xl md:text-4xl font-black text-white mb-2 drop-shadow-lg">
-                    {banners[currentBanner].title}
+                    {activeBanner.title}
                   </h2>
                   <p className="text-sm md:text-base text-white/80 mb-4 drop-shadow">
-                    {banners[currentBanner].subtitle}
+                    {activeBanner.subtitle}
                   </p>
-                  <Link to={banners[currentBanner].link}>
-                    <Button
-                      size="sm"
-                      className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 text-xs md:text-sm"
-                    >
-                      {banners[currentBanner].cta}
-                    </Button>
-                  </Link>
+                  {activeBanner.ctaText && activeBanner.ctaLink && (
+                    <Link to={activeBanner.ctaLink}>
+                      <Button
+                        size="sm"
+                        className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 text-xs md:text-sm"
+                      >
+                        {activeBanner.ctaText}
+                      </Button>
+                    </Link>
+                  )}
                 </motion.div>
               </div>
             </motion.div>
@@ -215,7 +364,7 @@ export function HomePage() {
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
             {banners.map((banner, i) => (
               <button
-                key={banner.alt}
+                key={banner.id}
                 type="button"
                 onClick={() => goTo(i)}
                 className={`rounded-full transition-all duration-300 ${
@@ -230,6 +379,20 @@ export function HomePage() {
       </section>
 
       <div className="container mx-auto px-4 max-w-7xl">
+        {/* ─── Promo Text Banner ────────────────────────────── */}
+        {promoText && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 flex justify-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-semibold">
+              <Tag className="w-3.5 h-3.5 shrink-0" />
+              {promoText}
+            </div>
+          </motion.div>
+        )}
+
         {/* ─── Quick Nav Icons ──────────────────────────────── */}
         <section className="py-8">
           <div className="grid grid-cols-5 gap-3 max-w-lg mx-auto md:max-w-2xl">
@@ -261,13 +424,13 @@ export function HomePage() {
           <div className="flex items-center gap-3 mb-6">
             <div className="w-1 h-6 gradient-blue-gold rounded-full" />
             <h2 className="font-display text-xl md:text-2xl font-black">
-              Featured Games
+              {featuredHeading}
             </h2>
             <Gem className="w-5 h-5 text-accent ml-1" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {featuredGames.map((game, i) => (
+            {games.map((game, i) => (
               <motion.div
                 key={game.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -286,10 +449,15 @@ export function HomePage() {
                     <div
                       className={`absolute inset-0 bg-gradient-to-t ${game.color} opacity-60`}
                     />
-                    <div className="absolute top-3 left-3">
+                    <div className="absolute top-3 left-3 flex items-center gap-2">
                       <span className="px-2 py-1 text-xs font-bold rounded-md bg-black/50 text-white/90 backdrop-blur-sm border border-white/10">
                         {game.badge}
                       </span>
+                      {!game.inStock && (
+                        <span className="px-2 py-1 text-xs font-bold rounded-md bg-red-900/70 text-red-300 backdrop-blur-sm border border-red-500/30">
+                          Out of Stock
+                        </span>
+                      )}
                     </div>
                   </div>
                   <CardContent className="p-5">
@@ -301,11 +469,16 @@ export function HomePage() {
                     </p>
                     <Link to={game.link}>
                       <Button
-                        className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
+                        className={`w-full font-bold border-0 hover:opacity-90 ${
+                          game.inStock
+                            ? "gradient-blue-gold text-white glow-blue"
+                            : "bg-muted text-muted-foreground cursor-not-allowed"
+                        }`}
                         data-ocid={game.ocid}
+                        disabled={!game.inStock}
                       >
                         <Gem className="w-4 h-4 mr-2" />
-                        Top Up Now
+                        {game.inStock ? "Top Up Now" : "Out of Stock"}
                       </Button>
                     </Link>
                   </CardContent>

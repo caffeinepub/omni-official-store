@@ -10,6 +10,14 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface Banner {
+  'id' : bigint,
+  'title' : string,
+  'ctaLink' : string,
+  'imageUrl' : string,
+  'ctaText' : string,
+  'subtitle' : string,
+}
 export interface DiamondPackage {
   'id' : bigint,
   'diamondAmount' : bigint,
@@ -17,7 +25,13 @@ export interface DiamondPackage {
   'gameId' : bigint,
   'price' : bigint,
 }
-export interface Game { 'id' : bigint, 'name' : string, 'description' : string }
+export interface Game {
+  'id' : bigint,
+  'inStock' : boolean,
+  'name' : string,
+  'description' : string,
+  'currency' : string,
+}
 export interface LeaderboardEntry {
   'user' : Principal,
   'totalDiamonds' : bigint,
@@ -50,6 +64,18 @@ export interface RedeemCode {
   'createdAt' : Time,
   'amount' : bigint,
 }
+export interface SiteConfig {
+  'backgroundColor' : string,
+  'tagline' : string,
+  'primaryColor' : string,
+  'banners' : Array<Banner>,
+  'discountPercent' : bigint,
+  'siteName' : string,
+  'promoText' : string,
+  'logoUrl' : string,
+  'featuredSectionHeading' : string,
+  'footerText' : string,
+}
 export type Time = bigint;
 export interface TopUpRequest {
   'id' : bigint,
@@ -67,8 +93,20 @@ export interface UserProfile { 'name' : string, 'email' : [] | [string] }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface UserStats {
+  'totalOrders' : bigint,
+  'usersThisMonth' : bigint,
+  'activeCustomers' : bigint,
+  'pendingOrders' : bigint,
+  'pendingTopUps' : bigint,
+  'completedOrders' : bigint,
+  'totalUsers' : bigint,
+  'totalRevenue' : bigint,
+}
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addBanner' : ActorMethod<[string, string, string, string, string], bigint>,
+  'addGame' : ActorMethod<[string, string, string], bigint>,
   'addPackage' : ActorMethod<[bigint, string, bigint, bigint], bigint>,
   'approveTopUpRequest' : ActorMethod<[bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
@@ -78,6 +116,7 @@ export interface _SERVICE {
   'getAllOrders' : ActorMethod<[], Array<Order>>,
   'getAllRedeemCodes' : ActorMethod<[], Array<RedeemCode>>,
   'getAllTopUpRequests' : ActorMethod<[], Array<TopUpRequest>>,
+  'getBanners' : ActorMethod<[], Array<Banner>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getGames' : ActorMethod<[], Array<Game>>,
@@ -86,15 +125,28 @@ export interface _SERVICE {
   'getOrders' : ActorMethod<[], Array<Order>>,
   'getPackages' : ActorMethod<[bigint], Array<DiamondPackage>>,
   'getPaymentConfig' : ActorMethod<[], [] | [PaymentConfig]>,
+  'getSiteConfig' : ActorMethod<[], [] | [SiteConfig]>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
+  'getUserStats' : ActorMethod<[], UserStats>,
   'getWalletBalance' : ActorMethod<[], bigint>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'placeOrder' : ActorMethod<[string, bigint, bigint], bigint>,
   'redeemCode' : ActorMethod<[string], bigint>,
   'rejectTopUpRequest' : ActorMethod<[bigint], undefined>,
+  'removeBanner' : ActorMethod<[bigint], undefined>,
+  'removeGame' : ActorMethod<[bigint], undefined>,
   'removePackage' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setPaymentConfig' : ActorMethod<[PaymentConfig], undefined>,
+  'setSiteConfig' : ActorMethod<[SiteConfig], undefined>,
+  'updateBanner' : ActorMethod<
+    [bigint, string, string, string, string, string],
+    undefined
+  >,
+  'updateGame' : ActorMethod<
+    [bigint, string, string, string, boolean],
+    undefined
+  >,
   'updateOrderStatus' : ActorMethod<[bigint, OrderStatus], undefined>,
   'updatePackage' : ActorMethod<[bigint, string, bigint, bigint], undefined>,
 }

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -30,22 +31,34 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Principal } from "@icp-sdk/core/principal";
-import { useQueryClient } from "@tanstack/react-query";
 import {
+  BarChart3,
   CheckCircle2,
+  Clock,
   Copy,
   Diamond,
+  GamepadIcon,
+  Image,
+  KeyRound,
   Landmark,
   Loader2,
+  LogOut,
   PackagePlus,
+  Paintbrush,
   Pencil,
   QrCode,
   ReceiptText,
+  RefreshCw,
   Settings2,
   ShieldCheck,
-  ShieldX,
+  ShoppingBag,
+  Tag,
   Ticket,
   Trash2,
+  TrendingUp,
+  UserCheck,
+  Users,
+  Users2,
   Wallet,
   XCircle,
 } from "lucide-react";
@@ -53,15 +66,19 @@ import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type {
+  Banner,
   DiamondPackage,
+  Game,
   Order,
   PaymentConfig,
   RedeemCode,
+  SiteConfig,
   TopUpRequest,
 } from "../backend.d";
 import { OrderStatus, PaymentMethod, TopUpRequestStatus } from "../backend.d";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
+  useAddBanner,
+  useAddGame,
   useAddPackage,
   useApproveTopUpRequest,
   useCreditWallet,
@@ -69,16 +86,23 @@ import {
   useGetAllOrders,
   useGetAllRedeemCodes,
   useGetAllTopUpRequests,
+  useGetBanners,
+  useGetGames,
   useGetPackages,
   useGetPaymentConfig,
-  useIsAdmin,
+  useGetSiteConfig,
+  useGetUserStats,
   useRejectTopUpRequest,
+  useRemoveBanner,
+  useRemoveGame,
   useRemovePackage,
   useSetPaymentConfig,
+  useSetSiteConfig,
+  useUpdateBanner,
+  useUpdateGame,
   useUpdateOrderStatus,
   useUpdatePackage,
 } from "../hooks/useQueries";
-import { handleLogin } from "../utils/mobileLogin";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1642,6 +1666,1479 @@ function PaymentConfigSection() {
   );
 }
 
+// ─── Overview Tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab() {
+  const { data: stats, isLoading, refetch, isFetching } = useGetUserStats();
+
+  const statCards = [
+    {
+      key: "usersThisMonth",
+      label: "Monthly Registrations",
+      value: stats?.usersThisMonth,
+      icon: Users,
+      color: "text-cyan-400",
+      bg: "bg-cyan-500/10 border-cyan-500/20",
+    },
+    {
+      key: "activeCustomers",
+      label: "Active Customers",
+      value: stats?.activeCustomers,
+      icon: UserCheck,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10 border-emerald-500/20",
+    },
+    {
+      key: "totalUsers",
+      label: "Total Users",
+      value: stats?.totalUsers,
+      icon: Users2,
+      color: "text-blue-400",
+      bg: "bg-blue-500/10 border-blue-500/20",
+    },
+    {
+      key: "totalOrders",
+      label: "Total Orders",
+      value: stats?.totalOrders,
+      icon: ShoppingBag,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10 border-purple-500/20",
+    },
+    {
+      key: "pendingOrders",
+      label: "Pending Orders",
+      value: stats?.pendingOrders,
+      icon: Clock,
+      color: "text-yellow-400",
+      bg: "bg-yellow-500/10 border-yellow-500/20",
+    },
+    {
+      key: "completedOrders",
+      label: "Completed Orders",
+      value: stats?.completedOrders,
+      icon: CheckCircle2,
+      color: "text-emerald-400",
+      bg: "bg-emerald-500/10 border-emerald-500/20",
+    },
+    {
+      key: "totalRevenue",
+      label: "Total Revenue",
+      value: stats?.totalRevenue,
+      icon: TrendingUp,
+      color: "text-amber-400",
+      bg: "bg-amber-500/10 border-amber-500/20",
+      isRevenue: true,
+    },
+    {
+      key: "pendingTopUps",
+      label: "Pending Top-ups",
+      value: stats?.pendingTopUps,
+      icon: ReceiptText,
+      color: "text-orange-400",
+      bg: "bg-orange-500/10 border-orange-500/20",
+    },
+  ] as const;
+
+  return (
+    <div className="space-y-6">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg font-black">Store Overview</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            End-of-month statistics and activity summary
+          </p>
+        </div>
+        <Button
+          data-ocid="admin.overview.refresh.button"
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="border-border text-muted-foreground hover:text-foreground hover:border-primary/50 shrink-0"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 mr-2 ${isFetching ? "animate-spin" : ""}`}
+          />
+          Refresh Stats
+        </Button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {statCards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <motion.div
+              key={card.key}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              data-ocid={`admin.overview.${card.key}.card`}
+            >
+              <Card className={`card-game border ${card.bg}`}>
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide leading-tight">
+                      {card.label}
+                    </p>
+                    <div
+                      className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center shrink-0`}
+                    >
+                      <Icon className={`w-4 h-4 ${card.color}`} />
+                    </div>
+                  </div>
+                  {isLoading ? (
+                    <Skeleton
+                      className="h-8 w-20 mt-1"
+                      data-ocid="admin.overview.loading_state"
+                    />
+                  ) : (
+                    <p
+                      className={`text-2xl font-black font-display ${card.color}`}
+                    >
+                      {"isRevenue" in card && card.isRevenue
+                        ? formatPrice(card.value ?? 0n)
+                        : Number(card.value ?? 0n).toLocaleString("en-IN")}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* Monthly highlight callout */}
+      {!isLoading && stats && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-xl p-5 bg-gradient-to-r from-primary/10 via-accent/5 to-transparent border border-primary/20"
+        >
+          <div className="flex flex-wrap items-center gap-6">
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                This Month
+              </p>
+              <p className="text-3xl font-black font-display text-cyan-400 mt-0.5">
+                {Number(stats.usersThisMonth).toLocaleString("en-IN")}
+              </p>
+              <p className="text-sm text-muted-foreground">new registrations</p>
+            </div>
+            <Separator
+              orientation="vertical"
+              className="h-14 bg-border/50 hidden sm:block"
+            />
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                Active Now
+              </p>
+              <p className="text-3xl font-black font-display text-emerald-400 mt-0.5">
+                {Number(stats.activeCustomers).toLocaleString("en-IN")}
+              </p>
+              <p className="text-sm text-muted-foreground">active customers</p>
+            </div>
+            <Separator
+              orientation="vertical"
+              className="h-14 bg-border/50 hidden sm:block"
+            />
+            <div>
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide">
+                Total Revenue
+              </p>
+              <p className="text-3xl font-black font-display text-amber-400 mt-0.5">
+                {formatPrice(stats.totalRevenue)}
+              </p>
+              <p className="text-sm text-muted-foreground">all time</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ─── Customize Tab ────────────────────────────────────────────────────────────
+
+const DEFAULT_SITE_CONFIG: SiteConfig = {
+  siteName: "Omni Official Store",
+  tagline: "Your #1 Diamond Top-up Destination",
+  logoUrl: "",
+  featuredSectionHeading: "Featured Games",
+  footerText: "",
+  primaryColor: "#3b82f6",
+  backgroundColor: "#020617",
+  discountPercent: 0n,
+  promoText: "",
+  banners: [],
+};
+
+function CustomizeTab() {
+  const { data: siteConfig, isLoading: configLoading } = useGetSiteConfig();
+  const setSiteConfig = useSetSiteConfig();
+  const config = siteConfig ?? DEFAULT_SITE_CONFIG;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-display text-lg font-black">
+          Website Customization
+        </h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Control all aspects of your store's appearance and content
+        </p>
+      </div>
+
+      <Tabs defaultValue="branding">
+        <TabsList className="bg-card border border-border mb-6 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger
+            value="branding"
+            data-ocid="customize.branding.tab"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs"
+          >
+            <Paintbrush className="w-3.5 h-3.5 mr-1.5" />
+            Branding
+          </TabsTrigger>
+          <TabsTrigger
+            value="banners"
+            data-ocid="customize.banners.tab"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs"
+          >
+            <Image className="w-3.5 h-3.5 mr-1.5" />
+            Banners
+          </TabsTrigger>
+          <TabsTrigger
+            value="games"
+            data-ocid="customize.games.tab"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs"
+          >
+            <GamepadIcon className="w-3.5 h-3.5 mr-1.5" />
+            Games
+          </TabsTrigger>
+          <TabsTrigger
+            value="promo"
+            data-ocid="customize.promo.tab"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs"
+          >
+            <Tag className="w-3.5 h-3.5 mr-1.5" />
+            Discount & Promo
+          </TabsTrigger>
+          <TabsTrigger
+            value="theme"
+            data-ocid="customize.theme.tab"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold text-xs"
+          >
+            <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+            Theme Colors
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="branding">
+          <BrandingSection
+            config={config}
+            configLoading={configLoading}
+            setSiteConfig={setSiteConfig}
+          />
+        </TabsContent>
+        <TabsContent value="banners">
+          <BannersSection />
+        </TabsContent>
+        <TabsContent value="games">
+          <GamesSection />
+        </TabsContent>
+        <TabsContent value="promo">
+          <PromoSection
+            config={config}
+            configLoading={configLoading}
+            setSiteConfig={setSiteConfig}
+          />
+        </TabsContent>
+        <TabsContent value="theme">
+          <ThemeSection
+            config={config}
+            configLoading={configLoading}
+            setSiteConfig={setSiteConfig}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ─── Branding Section ──────────────────────────────────────────────────────────
+
+function BrandingSection({
+  config,
+  configLoading,
+  setSiteConfig,
+}: {
+  config: SiteConfig;
+  configLoading: boolean;
+  setSiteConfig: ReturnType<typeof useSetSiteConfig>;
+}) {
+  const [form, setForm] = useState({
+    siteName: "",
+    tagline: "",
+    logoUrl: "",
+    featuredSectionHeading: "",
+    footerText: "",
+  });
+
+  useEffect(() => {
+    if (config) {
+      setForm({
+        siteName: config.siteName ?? "",
+        tagline: config.tagline ?? "",
+        logoUrl: config.logoUrl ?? "",
+        featuredSectionHeading: config.featuredSectionHeading ?? "",
+        footerText: config.footerText ?? "",
+      });
+    }
+  }, [config]);
+
+  const handleSave = () => {
+    setSiteConfig.mutate(
+      { ...config, ...form },
+      {
+        onSuccess: () => toast.success("Branding saved successfully"),
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  if (configLoading) return <Skeleton className="h-80 w-full rounded-xl" />;
+
+  return (
+    <Card className="card-game max-w-2xl">
+      <CardHeader>
+        <CardTitle className="font-display text-base flex items-center gap-2">
+          <Paintbrush className="w-5 h-5 text-primary" />
+          Branding Settings
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">Site Name</Label>
+          <Input
+            data-ocid="customize.branding.sitename.input"
+            value={form.siteName}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, siteName: e.target.value }))
+            }
+            placeholder="e.g. Omni Official Store"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">Tagline</Label>
+          <Input
+            data-ocid="customize.branding.tagline.input"
+            value={form.tagline}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, tagline: e.target.value }))
+            }
+            placeholder="e.g. Your #1 Diamond Top-up Destination"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">Logo URL</Label>
+          <Input
+            data-ocid="customize.branding.logo.input"
+            value={form.logoUrl}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, logoUrl: e.target.value }))
+            }
+            placeholder="https://... or /assets/logo.png"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+          {form.logoUrl && (
+            <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border">
+              <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+              <img
+                src={form.logoUrl}
+                alt="Logo preview"
+                className="h-10 object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">
+            Featured Section Heading
+          </Label>
+          <Input
+            data-ocid="customize.branding.heading.input"
+            value={form.featuredSectionHeading}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, featuredSectionHeading: e.target.value }))
+            }
+            placeholder="e.g. Featured Games"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">Footer Text</Label>
+          <Input
+            data-ocid="customize.branding.footer.input"
+            value={form.footerText}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, footerText: e.target.value }))
+            }
+            placeholder="e.g. © 2025 Omni Official Store. All rights reserved."
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+        <Button
+          data-ocid="customize.branding.save.submit_button"
+          onClick={handleSave}
+          disabled={setSiteConfig.isPending}
+          className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
+        >
+          {setSiteConfig.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Paintbrush className="w-4 h-4 mr-2" />
+          )}
+          {setSiteConfig.isPending ? "Saving..." : "Save Branding"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Banners Section ──────────────────────────────────────────────────────────
+
+type BannerFormData = {
+  imageUrl: string;
+  title: string;
+  subtitle: string;
+  ctaText: string;
+  ctaLink: string;
+};
+
+const emptyBannerForm: BannerFormData = {
+  imageUrl: "",
+  title: "",
+  subtitle: "",
+  ctaText: "",
+  ctaLink: "",
+};
+
+function BannersSection() {
+  const { data: banners, isLoading } = useGetBanners();
+  const addBanner = useAddBanner();
+  const updateBanner = useUpdateBanner();
+  const removeBanner = useRemoveBanner();
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editBanner, setEditBanner] = useState<Banner | null>(null);
+  const [deleteBanner, setDeleteBanner] = useState<Banner | null>(null);
+  const [form, setForm] = useState<BannerFormData>(emptyBannerForm);
+
+  const openAdd = () => {
+    setForm(emptyBannerForm);
+    setAddOpen(true);
+  };
+
+  const openEdit = (b: Banner) => {
+    setEditBanner(b);
+    setForm({
+      imageUrl: b.imageUrl,
+      title: b.title,
+      subtitle: b.subtitle,
+      ctaText: b.ctaText,
+      ctaLink: b.ctaLink,
+    });
+  };
+
+  const handleAdd = () => {
+    if (!form.imageUrl || !form.title) {
+      toast.error("Image URL and Title are required");
+      return;
+    }
+    addBanner.mutate(form, {
+      onSuccess: () => {
+        toast.success("Banner added");
+        setAddOpen(false);
+      },
+      onError: (e) =>
+        toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+    });
+  };
+
+  const handleEdit = () => {
+    if (!editBanner) return;
+    if (!form.imageUrl || !form.title) {
+      toast.error("Image URL and Title are required");
+      return;
+    }
+    updateBanner.mutate(
+      { bannerId: editBanner.id, ...form },
+      {
+        onSuccess: () => {
+          toast.success("Banner updated");
+          setEditBanner(null);
+        },
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleteBanner) return;
+    removeBanner.mutate(deleteBanner.id, {
+      onSuccess: () => {
+        toast.success("Banner deleted");
+        setDeleteBanner(null);
+      },
+      onError: (e) =>
+        toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-bold text-base">Banners</h3>
+        <Button
+          data-ocid="customize.banners.add.button"
+          size="sm"
+          onClick={openAdd}
+          className="gradient-blue-gold text-white font-bold border-0"
+        >
+          <Image className="w-3.5 h-3.5 mr-2" />
+          Add Banner
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : !banners || banners.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center py-14 text-center card-game rounded-xl"
+          data-ocid="customize.banners.empty_state"
+        >
+          <Image className="w-10 h-10 text-muted-foreground/30 mb-3" />
+          <p className="text-muted-foreground font-semibold">No banners yet</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Add your first banner above
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {banners.map((banner, index) => (
+            <div
+              key={banner.id.toString()}
+              data-ocid={`customize.banner.item.${index + 1}`}
+              className="card-game rounded-xl p-4 flex items-center gap-4"
+            >
+              {banner.imageUrl && (
+                <img
+                  src={banner.imageUrl}
+                  alt={banner.title}
+                  className="w-20 h-14 object-cover rounded-lg shrink-0 border border-border/50"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm truncate">{banner.title}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {banner.subtitle}
+                </p>
+                <p className="text-xs text-primary/70 truncate mt-0.5">
+                  CTA: {banner.ctaText} → {banner.ctaLink}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-ocid={`customize.banner.edit_button.${index + 1}`}
+                  onClick={() => openEdit(banner)}
+                  className="text-primary hover:bg-primary/10 hover:text-primary"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-ocid={`customize.banner.delete_button.${index + 1}`}
+                  onClick={() => setDeleteBanner(banner)}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Banner Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent
+          className="bg-card border-border"
+          data-ocid="customize.banner.add.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">
+              Add Banner
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Add a new banner to your homepage carousel
+            </DialogDescription>
+          </DialogHeader>
+          <BannerFormFields form={form} setForm={setForm} />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAddOpen(false)}
+              data-ocid="customize.banner.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              data-ocid="customize.banner.add.submit_button"
+              onClick={handleAdd}
+              disabled={addBanner.isPending}
+              className="gradient-blue-gold text-white font-bold border-0"
+            >
+              {addBanner.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Image className="w-4 h-4 mr-2" />
+              )}
+              {addBanner.isPending ? "Adding..." : "Add Banner"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Banner Dialog */}
+      <Dialog
+        open={!!editBanner}
+        onOpenChange={(o) => !o && setEditBanner(null)}
+      >
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">
+              Edit Banner
+            </DialogTitle>
+          </DialogHeader>
+          <BannerFormFields form={form} setForm={setForm} />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditBanner(null)}
+              data-ocid="customize.banner.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              data-ocid="customize.banner.edit.submit_button"
+              onClick={handleEdit}
+              disabled={updateBanner.isPending}
+              className="gradient-blue-gold text-white font-bold border-0"
+            >
+              {updateBanner.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {updateBanner.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Banner Dialog */}
+      <Dialog
+        open={!!deleteBanner}
+        onOpenChange={(o) => !o && setDeleteBanner(null)}
+      >
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg text-destructive">
+              Delete Banner
+            </DialogTitle>
+            <DialogDescription>
+              Delete{" "}
+              <strong className="text-foreground">{deleteBanner?.title}</strong>
+              ? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteBanner(null)}
+              data-ocid="customize.banner.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              data-ocid="customize.banner.delete.confirm_button"
+              onClick={handleDelete}
+              disabled={removeBanner.isPending}
+            >
+              {removeBanner.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {removeBanner.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function BannerFormFields({
+  form,
+  setForm,
+}: {
+  form: BannerFormData;
+  setForm: (f: BannerFormData) => void;
+}) {
+  return (
+    <div className="space-y-3 py-2">
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Image URL *</Label>
+        <Input
+          data-ocid="customize.banner.imageurl.input"
+          value={form.imageUrl}
+          onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+          placeholder="https://... or /assets/banner.jpg"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Title *</Label>
+        <Input
+          data-ocid="customize.banner.title.input"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          placeholder="e.g. Mobile Legends"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Subtitle</Label>
+        <Input
+          data-ocid="customize.banner.subtitle.input"
+          value={form.subtitle}
+          onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+          placeholder="e.g. Top up Diamonds instantly"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">CTA Button Text</Label>
+          <Input
+            data-ocid="customize.banner.ctatext.input"
+            value={form.ctaText}
+            onChange={(e) => setForm({ ...form, ctaText: e.target.value })}
+            placeholder="e.g. Top Up Now"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">CTA Link</Label>
+          <Input
+            data-ocid="customize.banner.ctalink.input"
+            value={form.ctaLink}
+            onChange={(e) => setForm({ ...form, ctaLink: e.target.value })}
+            placeholder="e.g. /game/mlbb"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Games Section ────────────────────────────────────────────────────────────
+
+type GameFormData = {
+  name: string;
+  description: string;
+  currency: string;
+  inStock: boolean;
+};
+
+const emptyGameForm: GameFormData = {
+  name: "",
+  description: "",
+  currency: "Diamonds",
+  inStock: true,
+};
+
+function GamesSection() {
+  const { data: games, isLoading } = useGetGames();
+  const addGame = useAddGame();
+  const updateGame = useUpdateGame();
+  const removeGame = useRemoveGame();
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editGame, setEditGame] = useState<Game | null>(null);
+  const [deleteGame, setDeleteGame] = useState<Game | null>(null);
+  const [form, setForm] = useState<GameFormData>(emptyGameForm);
+
+  const openAdd = () => {
+    setForm(emptyGameForm);
+    setAddOpen(true);
+  };
+
+  const openEdit = (g: Game) => {
+    setEditGame(g);
+    setForm({
+      name: g.name,
+      description: g.description,
+      currency: g.currency,
+      inStock: g.inStock,
+    });
+  };
+
+  const handleAdd = () => {
+    if (!form.name || !form.currency) {
+      toast.error("Name and Currency are required");
+      return;
+    }
+    addGame.mutate(
+      {
+        name: form.name,
+        description: form.description,
+        currency: form.currency,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Game added");
+          setAddOpen(false);
+        },
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  const handleEdit = () => {
+    if (!editGame) return;
+    if (!form.name || !form.currency) {
+      toast.error("Name and Currency are required");
+      return;
+    }
+    updateGame.mutate(
+      {
+        gameId: editGame.id,
+        name: form.name,
+        description: form.description,
+        currency: form.currency,
+        inStock: form.inStock,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Game updated");
+          setEditGame(null);
+        },
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deleteGame) return;
+    removeGame.mutate(deleteGame.id, {
+      onSuccess: () => {
+        toast.success("Game deleted");
+        setDeleteGame(null);
+      },
+      onError: (e) =>
+        toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+    });
+  };
+
+  const handleToggleStock = (g: Game) => {
+    updateGame.mutate(
+      {
+        gameId: g.id,
+        name: g.name,
+        description: g.description,
+        currency: g.currency,
+        inStock: !g.inStock,
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            `${g.name} marked as ${!g.inStock ? "In Stock" : "Out of Stock"}`,
+          ),
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-bold text-base">Games</h3>
+        <Button
+          data-ocid="customize.games.add.button"
+          size="sm"
+          onClick={openAdd}
+          className="gradient-blue-gold text-white font-bold border-0"
+        >
+          <GamepadIcon className="w-3.5 h-3.5 mr-2" />
+          Add Game
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : !games || games.length === 0 ? (
+        <div
+          className="flex flex-col items-center justify-center py-14 text-center card-game rounded-xl"
+          data-ocid="customize.games.empty_state"
+        >
+          <GamepadIcon className="w-10 h-10 text-muted-foreground/30 mb-3" />
+          <p className="text-muted-foreground font-semibold">No games yet</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Add games to display on the homepage
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {games.map((game, index) => (
+            <div
+              key={game.id.toString()}
+              data-ocid={`customize.game.item.${index + 1}`}
+              className="card-game rounded-xl p-4 flex items-center gap-4"
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <GamepadIcon className="w-5 h-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-sm">{game.name}</p>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-bold border ${
+                      game.inStock
+                        ? "border-emerald-500/40 text-emerald-400"
+                        : "border-red-500/40 text-red-400"
+                    }`}
+                  >
+                    {game.inStock ? "In Stock" : "Out of Stock"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Currency: {game.currency}
+                  {game.description && ` • ${game.description}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {game.inStock ? "In Stock" : "Out of Stock"}
+                  </span>
+                  <Switch
+                    checked={game.inStock}
+                    onCheckedChange={() => handleToggleStock(game)}
+                    data-ocid={`customize.game.stock.switch.${index + 1}`}
+                    disabled={updateGame.isPending}
+                  />
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-ocid={`customize.game.edit_button.${index + 1}`}
+                  onClick={() => openEdit(game)}
+                  className="text-primary hover:bg-primary/10 hover:text-primary"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-ocid={`customize.game.delete_button.${index + 1}`}
+                  onClick={() => setDeleteGame(game)}
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Game Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent
+          className="bg-card border-border"
+          data-ocid="customize.game.add.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">Add Game</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Add a new game to your store
+            </DialogDescription>
+          </DialogHeader>
+          <GameFormFields form={form} setForm={setForm} showStock={false} />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAddOpen(false)}
+              data-ocid="customize.game.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              data-ocid="customize.game.add.submit_button"
+              onClick={handleAdd}
+              disabled={addGame.isPending}
+              className="gradient-blue-gold text-white font-bold border-0"
+            >
+              {addGame.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {addGame.isPending ? "Adding..." : "Add Game"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Game Dialog */}
+      <Dialog open={!!editGame} onOpenChange={(o) => !o && setEditGame(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">
+              Edit Game
+            </DialogTitle>
+          </DialogHeader>
+          <GameFormFields form={form} setForm={setForm} showStock={true} />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditGame(null)}
+              data-ocid="customize.game.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              data-ocid="customize.game.edit.submit_button"
+              onClick={handleEdit}
+              disabled={updateGame.isPending}
+              className="gradient-blue-gold text-white font-bold border-0"
+            >
+              {updateGame.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {updateGame.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Game Dialog */}
+      <Dialog
+        open={!!deleteGame}
+        onOpenChange={(o) => !o && setDeleteGame(null)}
+      >
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg text-destructive">
+              Delete Game
+            </DialogTitle>
+            <DialogDescription>
+              Delete{" "}
+              <strong className="text-foreground">{deleteGame?.name}</strong>?
+              This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteGame(null)}
+              data-ocid="customize.game.cancel_button"
+              className="border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              data-ocid="customize.game.delete.confirm_button"
+              onClick={handleDelete}
+              disabled={removeGame.isPending}
+            >
+              {removeGame.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {removeGame.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function GameFormFields({
+  form,
+  setForm,
+  showStock,
+}: {
+  form: GameFormData;
+  setForm: (f: GameFormData) => void;
+  showStock: boolean;
+}) {
+  return (
+    <div className="space-y-3 py-2">
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Game Name *</Label>
+        <Input
+          data-ocid="customize.game.name.input"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="e.g. Mobile Legends: Bang Bang"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">Description</Label>
+        <Input
+          data-ocid="customize.game.description.input"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          placeholder="e.g. Top up Diamonds instantly"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">In-game Currency *</Label>
+        <Input
+          data-ocid="customize.game.currency.input"
+          value={form.currency}
+          onChange={(e) => setForm({ ...form, currency: e.target.value })}
+          placeholder="e.g. Diamonds, Tokens, Coins"
+          className="bg-input/50 border-border focus:border-primary"
+        />
+        <p className="text-xs text-muted-foreground">
+          Used in the top-up page (e.g. "Get 500 Diamonds")
+        </p>
+      </div>
+      {showStock && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+          <Switch
+            id="game-instock"
+            checked={form.inStock}
+            onCheckedChange={(v) => setForm({ ...form, inStock: v })}
+            data-ocid="customize.game.instock.switch"
+          />
+          <Label
+            htmlFor="game-instock"
+            className="text-sm font-semibold cursor-pointer"
+          >
+            In Stock{" "}
+            <span className="text-muted-foreground font-normal">
+              (uncheck to show "Out of Stock" on the top-up page)
+            </span>
+          </Label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Promo Section ────────────────────────────────────────────────────────────
+
+function PromoSection({
+  config,
+  configLoading,
+  setSiteConfig,
+}: {
+  config: SiteConfig;
+  configLoading: boolean;
+  setSiteConfig: ReturnType<typeof useSetSiteConfig>;
+}) {
+  const [discount, setDiscount] = useState("");
+  const [promoText, setPromoText] = useState("");
+
+  useEffect(() => {
+    if (config) {
+      setDiscount(config.discountPercent?.toString() ?? "0");
+      setPromoText(config.promoText ?? "");
+    }
+  }, [config]);
+
+  const handleSave = () => {
+    const discountNum = Number(discount);
+    if (Number.isNaN(discountNum) || discountNum < 0 || discountNum > 100) {
+      toast.error("Discount must be between 0 and 100");
+      return;
+    }
+    setSiteConfig.mutate(
+      {
+        ...config,
+        discountPercent: BigInt(Math.floor(discountNum)),
+        promoText,
+      },
+      {
+        onSuccess: () => toast.success("Promo settings saved"),
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  if (configLoading) return <Skeleton className="h-48 w-full rounded-xl" />;
+
+  return (
+    <Card className="card-game max-w-2xl">
+      <CardHeader>
+        <CardTitle className="font-display text-base flex items-center gap-2">
+          <Tag className="w-5 h-5 text-primary" />
+          Discount & Promo Settings
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">
+            Discount Percent (0–100)
+          </Label>
+          <div className="flex items-center gap-3">
+            <Input
+              data-ocid="customize.promo.discount.input"
+              type="number"
+              min="0"
+              max="100"
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+              placeholder="0"
+              className="bg-input/50 border-border focus:border-primary w-28"
+            />
+            {Number(discount) > 0 && (
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold">
+                {discount}% OFF
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Set to 0 to disable discounts. Discount applies to all packages.
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">Promo Banner Text</Label>
+          <Input
+            data-ocid="customize.promo.text.input"
+            value={promoText}
+            onChange={(e) => setPromoText(e.target.value)}
+            placeholder="e.g. ⚡ Flash Sale! 10% off all packages today only"
+            className="bg-input/50 border-border focus:border-primary"
+          />
+          <p className="text-xs text-muted-foreground">
+            Displayed as a pill/banner below the carousel on the homepage. Leave
+            empty to hide.
+          </p>
+        </div>
+
+        {promoText && (
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-center gap-2">
+            <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-sm text-amber-300 font-semibold">
+              {promoText}
+            </span>
+          </div>
+        )}
+
+        <Button
+          data-ocid="customize.promo.save.submit_button"
+          onClick={handleSave}
+          disabled={setSiteConfig.isPending}
+          className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
+        >
+          {setSiteConfig.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Tag className="w-4 h-4 mr-2" />
+          )}
+          {setSiteConfig.isPending ? "Saving..." : "Save Promo Settings"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Theme Section ────────────────────────────────────────────────────────────
+
+function ThemeSection({
+  config,
+  configLoading,
+  setSiteConfig,
+}: {
+  config: SiteConfig;
+  configLoading: boolean;
+  setSiteConfig: ReturnType<typeof useSetSiteConfig>;
+}) {
+  const [primaryColor, setPrimaryColor] = useState("#3b82f6");
+  const [bgColor, setBgColor] = useState("#020617");
+
+  useEffect(() => {
+    if (config) {
+      setPrimaryColor(config.primaryColor || "#3b82f6");
+      setBgColor(config.backgroundColor || "#020617");
+    }
+  }, [config]);
+
+  const handleSave = () => {
+    setSiteConfig.mutate(
+      { ...config, primaryColor, backgroundColor: bgColor },
+      {
+        onSuccess: () => toast.success("Theme colors saved"),
+        onError: (e) =>
+          toast.error(`Failed: ${e instanceof Error ? e.message : "Error"}`),
+      },
+    );
+  };
+
+  if (configLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
+
+  return (
+    <Card className="card-game max-w-2xl">
+      <CardHeader>
+        <CardTitle className="font-display text-base flex items-center gap-2">
+          <Settings2 className="w-5 h-5 text-primary" />
+          Theme Colors
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {/* Primary Color */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Primary Color</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                data-ocid="customize.theme.primary.input"
+                value={primaryColor}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                className="w-12 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+              />
+              <div className="flex-1">
+                <Input
+                  value={primaryColor}
+                  onChange={(e) => setPrimaryColor(e.target.value)}
+                  placeholder="#3b82f6"
+                  className="bg-input/50 border-border focus:border-primary font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div
+              className="h-10 rounded-lg border border-border/50 flex items-center justify-center text-xs font-bold"
+              style={{ backgroundColor: primaryColor, color: "#fff" }}
+            >
+              Primary Color Preview
+            </div>
+          </div>
+
+          {/* Background Color */}
+          <div className="space-y-3">
+            <Label className="text-sm font-semibold">Background Color</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                data-ocid="customize.theme.bg.input"
+                value={bgColor}
+                onChange={(e) => setBgColor(e.target.value)}
+                className="w-12 h-10 rounded-lg border border-border cursor-pointer bg-transparent"
+              />
+              <div className="flex-1">
+                <Input
+                  value={bgColor}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  placeholder="#020617"
+                  className="bg-input/50 border-border focus:border-primary font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div
+              className="h-10 rounded-lg border border-border/50 flex items-center justify-center text-xs font-bold"
+              style={{
+                backgroundColor: bgColor,
+                color:
+                  bgColor.toLowerCase() === "#020617" ||
+                  bgColor.toLowerCase().startsWith("#0")
+                    ? "#fff"
+                    : "#000",
+              }}
+            >
+              Background Preview
+            </div>
+          </div>
+        </div>
+
+        {/* Combined preview */}
+        <div
+          className="rounded-xl p-4 border border-border/50 flex items-center gap-4"
+          style={{ backgroundColor: bgColor }}
+        >
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0"
+            style={{ backgroundColor: primaryColor }}
+          >
+            O
+          </div>
+          <div>
+            <p className="font-bold text-sm" style={{ color: primaryColor }}>
+              Omni Official Store
+            </p>
+            <p className="text-xs" style={{ color: `${primaryColor}80` }}>
+              Combined color preview
+            </p>
+          </div>
+        </div>
+
+        <Button
+          data-ocid="customize.theme.save.submit_button"
+          onClick={handleSave}
+          disabled={setSiteConfig.isPending}
+          className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
+        >
+          {setSiteConfig.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Settings2 className="w-4 h-4 mr-2" />
+          )}
+          {setSiteConfig.isPending ? "Saving..." : "Save Theme Colors"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Shopping bag icon placeholder ───────────────────────────────────────────
 function ShoppingBagIcon({ className }: { className?: string }) {
   return (
@@ -1663,117 +3160,188 @@ function ShoppingBagIcon({ className }: { className?: string }) {
   );
 }
 
+// ─── Admin Credentials ────────────────────────────────────────────────────────
+
+const ADMIN_USERNAME = "omni_admin";
+// Never stored in plain text — hashed at runtime against the entered password
+const ADMIN_PASSWORD = "Omni@2024";
+
+async function hashString(str: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(str),
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
 export function AdminPage() {
-  const { login, loginStatus, identity } = useInternetIdentity();
-  const isLoggedIn = !!identity;
-  const isLoggingIn = loginStatus === "logging-in";
-  const isInitializing = loginStatus === "initializing";
-  const queryClient = useQueryClient();
+  const [adminAuthed, setAdminAuthed] = useState<boolean>(() => {
+    return sessionStorage.getItem("omni_admin_authed") === "true";
+  });
 
-  const {
-    data: isAdmin,
-    isLoading: checkingAdmin,
-    refetch: refetchAdmin,
-  } = useIsAdmin();
+  const [enteredUsername, setEnteredUsername] = useState("");
+  const [enteredPassword, setEnteredPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Not logged in
-  if (!isLoggedIn) {
+  const handleAdminLogin = async () => {
+    if (!enteredUsername.trim() || !enteredPassword) {
+      setLoginError("Please enter both username and password");
+      return;
+    }
+    setLoginError("");
+    setIsLoggingIn(true);
+    try {
+      const [inputHash, correctHash] = await Promise.all([
+        hashString(enteredPassword),
+        hashString(ADMIN_PASSWORD),
+      ]);
+      if (
+        enteredUsername.trim() === ADMIN_USERNAME &&
+        inputHash === correctHash
+      ) {
+        sessionStorage.setItem("omni_admin_authed", "true");
+        setAdminAuthed(true);
+      } else {
+        setLoginError("Invalid username or password");
+      }
+    } catch {
+      setLoginError("An error occurred. Please try again.");
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("omni_admin_authed");
+    setAdminAuthed(false);
+    setEnteredUsername("");
+    setEnteredPassword("");
+    setLoginError("");
+  };
+
+  // ─── Login Form ──────────────────────────────────────────────────────────────
+
+  if (!adminAuthed) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm"
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm"
         >
-          <div className="w-16 h-16 rounded-2xl gradient-blue-gold flex items-center justify-center mx-auto mb-6 glow-blue">
-            <ShieldCheck className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="font-display text-2xl font-black mb-2">
-            Admin Access
-          </h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            Please log in to access the admin panel
-          </p>
-          <Button
-            onClick={() => handleLogin(login)}
-            disabled={isLoggingIn || isInitializing}
-            className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
-            data-ocid="auth.login.button"
-          >
-            {isLoggingIn || isInitializing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {isInitializing ? "Loading..." : "Connecting..."}
-              </>
-            ) : (
-              "Sign In to Continue"
-            )}
-          </Button>
-          {loginStatus === "loginError" && (
-            <p className="text-xs text-destructive mt-3 text-center">
-              Login failed. Please try again.
-            </p>
-          )}
+          <Card className="card-game border border-border shadow-2xl">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 rounded-2xl gradient-blue-gold flex items-center justify-center mx-auto mb-4 glow-blue">
+                <ShieldCheck className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="font-display text-2xl font-black">
+                Admin Login
+              </CardTitle>
+              <p className="text-muted-foreground text-sm mt-1">
+                Enter your admin credentials to continue
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Username */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="admin-username"
+                  className="text-sm font-semibold"
+                >
+                  Username
+                </Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="admin-username"
+                    data-ocid="admin.login.username.input"
+                    type="text"
+                    placeholder="Username"
+                    autoComplete="username"
+                    value={enteredUsername}
+                    onChange={(e) => {
+                      setEnteredUsername(e.target.value);
+                      setLoginError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                    className="pl-10 bg-input/50 border-border focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="admin-password"
+                  className="text-sm font-semibold"
+                >
+                  Password
+                </Label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="admin-password"
+                    data-ocid="admin.login.password.input"
+                    type="password"
+                    placeholder="Password"
+                    autoComplete="current-password"
+                    value={enteredPassword}
+                    onChange={(e) => {
+                      setEnteredPassword(e.target.value);
+                      setLoginError("");
+                    }}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                    className="pl-10 bg-input/50 border-border focus:border-primary"
+                  />
+                </div>
+              </div>
+
+              {/* Error */}
+              {loginError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  data-ocid="admin.login.error_state"
+                  className="text-sm text-destructive font-semibold text-center bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2"
+                >
+                  {loginError}
+                </motion.p>
+              )}
+
+              {/* Login Button */}
+              <Button
+                data-ocid="admin.login.submit_button"
+                onClick={handleAdminLogin}
+                disabled={isLoggingIn}
+                className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue h-11"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Login to Admin Panel
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
         </motion.div>
       </div>
     );
   }
 
-  // Checking admin status
-  if (checkingAdmin) {
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <div className="text-center" data-ocid="admin.loading_state">
-          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Verifying access...</p>
-        </div>
-      </div>
-    );
-  }
+  // ─── Admin Panel ─────────────────────────────────────────────────────────────
 
-  // Not admin
-  if (!isAdmin) {
-    const handleRetry = async () => {
-      // Invalidate all queries so actor re-initialises with token
-      queryClient.removeQueries({ queryKey: ["isAdmin"] });
-      await queryClient.invalidateQueries({ queryKey: ["actor"] });
-      await refetchAdmin();
-    };
-
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm"
-          data-ocid="admin.error_state"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-destructive/20 border border-destructive/30 flex items-center justify-center mx-auto mb-6">
-            <ShieldX className="w-8 h-8 text-destructive" />
-          </div>
-          <h1 className="font-display text-2xl font-black mb-2 text-destructive">
-            Access Denied
-          </h1>
-          <p className="text-muted-foreground text-sm mb-6">
-            You don't have admin privileges. If you just logged in via the admin
-            link, click Retry below.
-          </p>
-          <Button
-            data-ocid="admin.retry.button"
-            onClick={handleRetry}
-            className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue w-full"
-          >
-            <Loader2 className="w-4 h-4 mr-2" />
-            Retry Admin Access
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Admin panel
   return (
     <div className="min-h-screen">
       {/* Header Banner */}
@@ -1782,27 +3350,55 @@ export function AdminPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4"
+            className="flex items-center justify-between gap-4"
           >
-            <div className="w-12 h-12 rounded-xl gradient-blue-gold flex items-center justify-center shrink-0 glow-blue">
-              <ShieldCheck className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl gradient-blue-gold flex items-center justify-center shrink-0 glow-blue">
+                <ShieldCheck className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="font-display text-2xl md:text-3xl font-black">
+                  Admin Panel
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Omni Official Store — Manage packages, orders, and wallets
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="font-display text-2xl md:text-3xl font-black">
-                Admin Panel
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                Omni Official Store — Manage packages, orders, and wallets
-              </p>
-            </div>
+            <Button
+              data-ocid="admin.logout.button"
+              variant="outline"
+              size="sm"
+              onClick={handleLogout}
+              className="border-border text-muted-foreground hover:text-destructive hover:border-destructive/50 hover:bg-destructive/10 transition-colors shrink-0"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </motion.div>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="container mx-auto px-4 max-w-7xl py-8">
-        <Tabs defaultValue="packages">
+        <Tabs defaultValue="overview">
           <TabsList className="bg-card border border-border mb-6 flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger
+              value="overview"
+              data-ocid="admin.overview.tab"
+              className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="customize"
+              data-ocid="admin.customize.tab"
+              className="data-[state=active]:bg-primary data-[state=active]:text-white font-semibold"
+            >
+              <Paintbrush className="w-4 h-4 mr-2" />
+              Customize
+            </TabsTrigger>
             <TabsTrigger
               value="packages"
               data-ocid="admin.packages.tab"
@@ -1845,6 +3441,12 @@ export function AdminPage() {
             </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="overview">
+            <OverviewTab />
+          </TabsContent>
+          <TabsContent value="customize">
+            <CustomizeTab />
+          </TabsContent>
           <TabsContent value="packages">
             <PackagesTab />
           </TabsContent>

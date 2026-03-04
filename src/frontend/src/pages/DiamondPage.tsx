@@ -1,16 +1,28 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useParams } from "@tanstack/react-router";
-import { AlertCircle, CheckCircle2, Gem, Loader2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Gem,
+  Loader2,
+  PackageX,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { DiamondPackage } from "../backend.d";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useGetPackages, usePlaceOrder } from "../hooks/useQueries";
+import {
+  useGetGames,
+  useGetPackages,
+  useGetSiteConfig,
+  usePlaceOrder,
+} from "../hooks/useQueries";
 import { handleLogin } from "../utils/mobileLogin";
 
 const gameInfo: Record<
@@ -41,6 +53,10 @@ function formatPrice(price: bigint): string {
   }).format(num);
 }
 
+function calcDiscountedPrice(price: bigint, discountPercent: bigint): bigint {
+  return (price * (100n - discountPercent)) / 100n;
+}
+
 const ocidMap: Record<number, string> = {
   0: "diamond.package.item.1",
   1: "diamond.package.item.2",
@@ -63,9 +79,20 @@ export function DiamondPage() {
   const [playerId, setPlayerId] = useState("");
 
   const { data: packages, isLoading } = useGetPackages(game.gameId);
+  const { data: allGames } = useGetGames();
+  const { data: siteConfig } = useGetSiteConfig();
   const { mutate: placeOrder, isPending } = usePlaceOrder();
   const { login, identity } = useInternetIdentity();
   const isLoggedIn = !!identity;
+
+  // Find the matching game from backend to get currency and inStock status
+  const backendGame = allGames?.find((g) => g.id === game.gameId);
+  const currency = backendGame?.currency ?? "Diamonds";
+  const isOutOfStock = backendGame ? !backendGame.inStock : false;
+
+  // Discount
+  const discountPercent = siteConfig?.discountPercent ?? 0n;
+  const hasDiscount = discountPercent > 0n;
 
   const handleTopUp = () => {
     if (!isLoggedIn) {
@@ -80,6 +107,10 @@ export function DiamondPage() {
       toast.error("Please enter your Player ID");
       return;
     }
+    if (isOutOfStock) {
+      toast.error("This game is currently out of stock");
+      return;
+    }
 
     placeOrder(
       {
@@ -90,7 +121,7 @@ export function DiamondPage() {
       {
         onSuccess: (orderId) => {
           toast.success(
-            `Order #${orderId} placed successfully! Diamonds will be credited shortly.`,
+            `Order #${orderId} placed successfully! ${currency} will be credited shortly.`,
           );
           setPlayerId("");
           setSelectedPackage(null);
@@ -121,15 +152,22 @@ export function DiamondPage() {
           <div className="flex items-center gap-3 mb-2">
             <Gem className="w-6 h-6 text-primary" />
             <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Diamond Top Up
+              {currency} Top Up
             </span>
           </div>
           <h1 className="font-display text-2xl md:text-4xl font-black">
-            {game.name}
+            {backendGame?.name ?? game.name}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Select a package, enter your Player ID, and top up instantly
           </p>
+          {hasDiscount && (
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
+              <span className="text-emerald-400 font-bold text-sm">
+                🎉 {Number(discountPercent)}% OFF — Limited time offer!
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -160,14 +198,42 @@ export function DiamondPage() {
           </motion.div>
         )}
 
+        {/* Out of Stock Banner */}
+        {isOutOfStock && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            data-ocid="diamond.out_of_stock.panel"
+            className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-3"
+          >
+            <PackageX className="w-5 h-5 text-red-400 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-300">
+                Currently Out of Stock
+              </p>
+              <p className="text-xs text-muted-foreground">
+                This game's top-up service is temporarily unavailable. Please
+                check back later.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Package Grid */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1 h-5 gradient-blue-gold rounded-full" />
-              <h2 className="font-display text-lg font-black">
-                Select Package
-              </h2>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 gradient-blue-gold rounded-full" />
+                <h2 className="font-display text-lg font-black">
+                  Select Package
+                </h2>
+              </div>
+              {hasDiscount && (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-bold">
+                  {Number(discountPercent)}% OFF Applied
+                </Badge>
+              )}
             </div>
 
             {isLoading ? (
@@ -179,7 +245,10 @@ export function DiamondPage() {
                 )}
               </div>
             ) : !packages || packages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div
+                className="flex flex-col items-center justify-center py-16 text-center"
+                data-ocid="diamond.packages.empty_state"
+              >
                 <Gem className="w-12 h-12 text-muted-foreground/30 mb-4" />
                 <p className="text-muted-foreground font-semibold">
                   No packages available
@@ -190,37 +259,60 @@ export function DiamondPage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {packages.map((pkg, index) => (
-                  <motion.div
-                    key={pkg.id.toString()}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: index * 0.04 }}
-                    onClick={() => setSelectedPackage(pkg)}
-                    data-ocid={
-                      ocidMap[index] ?? `diamond.package.item.${index + 1}`
-                    }
-                    className={`diamond-package-card rounded-xl p-4 text-center ${
-                      selectedPackage?.id === pkg.id ? "selected" : ""
-                    }`}
-                  >
-                    {selectedPackage?.id === pkg.id && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                {packages.map((pkg, index) => {
+                  const discountedPrice = hasDiscount
+                    ? calcDiscountedPrice(pkg.price, discountPercent)
+                    : null;
+                  return (
+                    <motion.div
+                      key={pkg.id.toString()}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.04 }}
+                      onClick={() => !isOutOfStock && setSelectedPackage(pkg)}
+                      data-ocid={
+                        ocidMap[index] ?? `diamond.package.item.${index + 1}`
+                      }
+                      className={`diamond-package-card rounded-xl p-4 text-center ${
+                        selectedPackage?.id === pkg.id ? "selected" : ""
+                      } ${isOutOfStock ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      {selectedPackage?.id === pkg.id && !isOutOfStock && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary" />
+                        </div>
+                      )}
+                      {hasDiscount && discountedPrice !== null && (
+                        <div className="absolute top-2 left-2">
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/25 text-emerald-400 border border-emerald-500/30">
+                            -{Number(discountPercent)}%
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-2xl mb-1">💎</div>
+                      <div className="font-display text-lg font-black text-gradient-gold">
+                        {Number(pkg.diamondAmount).toLocaleString()}
                       </div>
-                    )}
-                    <div className="text-2xl mb-1">💎</div>
-                    <div className="font-display text-lg font-black text-gradient-gold">
-                      {Number(pkg.diamondAmount).toLocaleString()}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mb-2">
-                      {pkg.name}
-                    </div>
-                    <div className="text-xs font-bold text-foreground/90">
-                      {formatPrice(pkg.price)}
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="text-[10px] text-muted-foreground mb-2">
+                        {pkg.name}
+                      </div>
+                      {hasDiscount && discountedPrice !== null ? (
+                        <div className="space-y-0.5">
+                          <div className="text-[10px] text-muted-foreground line-through">
+                            {formatPrice(pkg.price)}
+                          </div>
+                          <div className="text-xs font-bold text-emerald-400">
+                            {formatPrice(discountedPrice)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-bold text-foreground/90">
+                          {formatPrice(pkg.price)}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -249,14 +341,30 @@ export function DiamondPage() {
                       <div className="text-3xl mb-1">💎</div>
                       <div className="font-display text-xl font-black text-gradient-gold">
                         {Number(selectedPackage.diamondAmount).toLocaleString()}{" "}
-                        Diamonds
+                        {currency}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {selectedPackage.name}
                       </div>
-                      <div className="font-bold text-foreground mt-1">
-                        {formatPrice(selectedPackage.price)}
-                      </div>
+                      {hasDiscount ? (
+                        <div className="mt-1 space-y-0.5">
+                          <div className="text-xs text-muted-foreground line-through">
+                            {formatPrice(selectedPackage.price)}
+                          </div>
+                          <div className="font-bold text-emerald-400">
+                            {formatPrice(
+                              calcDiscountedPrice(
+                                selectedPackage.price,
+                                discountPercent,
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="font-bold text-foreground mt-1">
+                          {formatPrice(selectedPackage.price)}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground py-2">
@@ -280,6 +388,7 @@ export function DiamondPage() {
                     onChange={(e) => setPlayerId(e.target.value)}
                     data-ocid="diamond.playerid.input"
                     className="bg-input/50 border-border focus:border-primary"
+                    disabled={isOutOfStock}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     Find your ID in the game settings
@@ -290,13 +399,23 @@ export function DiamondPage() {
                 <Button
                   className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue h-11"
                   onClick={handleTopUp}
-                  disabled={isPending || !selectedPackage || !playerId.trim()}
+                  disabled={
+                    isPending ||
+                    !selectedPackage ||
+                    !playerId.trim() ||
+                    isOutOfStock
+                  }
                   data-ocid="diamond.topup.submit_button"
                 >
                   {isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Processing...
+                    </>
+                  ) : isOutOfStock ? (
+                    <>
+                      <PackageX className="w-4 h-4 mr-2" />
+                      Out of Stock
                     </>
                   ) : (
                     <>

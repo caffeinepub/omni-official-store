@@ -53,14 +53,24 @@ export const TopUpRequest = IDL.Record({
   'amount' : IDL.Nat,
   'utrRef' : IDL.Text,
 });
+export const Banner = IDL.Record({
+  'id' : IDL.Nat,
+  'title' : IDL.Text,
+  'ctaLink' : IDL.Text,
+  'imageUrl' : IDL.Text,
+  'ctaText' : IDL.Text,
+  'subtitle' : IDL.Text,
+});
 export const UserProfile = IDL.Record({
   'name' : IDL.Text,
   'email' : IDL.Opt(IDL.Text),
 });
 export const Game = IDL.Record({
   'id' : IDL.Nat,
+  'inStock' : IDL.Bool,
   'name' : IDL.Text,
   'description' : IDL.Text,
+  'currency' : IDL.Text,
 });
 export const LeaderboardEntry = IDL.Record({
   'user' : IDL.Principal,
@@ -80,9 +90,37 @@ export const PaymentConfig = IDL.Record({
   'accountNumber' : IDL.Opt(IDL.Text),
   'accountHolder' : IDL.Opt(IDL.Text),
 });
+export const SiteConfig = IDL.Record({
+  'backgroundColor' : IDL.Text,
+  'tagline' : IDL.Text,
+  'primaryColor' : IDL.Text,
+  'banners' : IDL.Vec(Banner),
+  'discountPercent' : IDL.Nat,
+  'siteName' : IDL.Text,
+  'promoText' : IDL.Text,
+  'logoUrl' : IDL.Text,
+  'featuredSectionHeading' : IDL.Text,
+  'footerText' : IDL.Text,
+});
+export const UserStats = IDL.Record({
+  'totalOrders' : IDL.Nat,
+  'usersThisMonth' : IDL.Nat,
+  'activeCustomers' : IDL.Nat,
+  'pendingOrders' : IDL.Nat,
+  'pendingTopUps' : IDL.Nat,
+  'completedOrders' : IDL.Nat,
+  'totalUsers' : IDL.Nat,
+  'totalRevenue' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addBanner' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'addGame' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'addPackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
   'approveTopUpRequest' : IDL.Func([IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
@@ -96,6 +134,7 @@ export const idlService = IDL.Service({
   'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
   'getAllRedeemCodes' : IDL.Func([], [IDL.Vec(RedeemCode)], ['query']),
   'getAllTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
+  'getBanners' : IDL.Func([], [IDL.Vec(Banner)], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getGames' : IDL.Func([], [IDL.Vec(Game)], ['query']),
@@ -104,19 +143,34 @@ export const idlService = IDL.Service({
   'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
   'getPackages' : IDL.Func([IDL.Nat], [IDL.Vec(DiamondPackage)], ['query']),
   'getPaymentConfig' : IDL.Func([], [IDL.Opt(PaymentConfig)], ['query']),
+  'getSiteConfig' : IDL.Func([], [IDL.Opt(SiteConfig)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
+  'getUserStats' : IDL.Func([], [UserStats], ['query']),
   'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'placeOrder' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
   'redeemCode' : IDL.Func([IDL.Text], [IDL.Nat], []),
   'rejectTopUpRequest' : IDL.Func([IDL.Nat], [], []),
+  'removeBanner' : IDL.Func([IDL.Nat], [], []),
+  'removeGame' : IDL.Func([IDL.Nat], [], []),
   'removePackage' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setPaymentConfig' : IDL.Func([PaymentConfig], [], []),
+  'setSiteConfig' : IDL.Func([SiteConfig], [], []),
+  'updateBanner' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateGame' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
+      [],
+      [],
+    ),
   'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
   'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
 });
@@ -166,14 +220,24 @@ export const idlFactory = ({ IDL }) => {
     'amount' : IDL.Nat,
     'utrRef' : IDL.Text,
   });
+  const Banner = IDL.Record({
+    'id' : IDL.Nat,
+    'title' : IDL.Text,
+    'ctaLink' : IDL.Text,
+    'imageUrl' : IDL.Text,
+    'ctaText' : IDL.Text,
+    'subtitle' : IDL.Text,
+  });
   const UserProfile = IDL.Record({
     'name' : IDL.Text,
     'email' : IDL.Opt(IDL.Text),
   });
   const Game = IDL.Record({
     'id' : IDL.Nat,
+    'inStock' : IDL.Bool,
     'name' : IDL.Text,
     'description' : IDL.Text,
+    'currency' : IDL.Text,
   });
   const LeaderboardEntry = IDL.Record({
     'user' : IDL.Principal,
@@ -193,9 +257,37 @@ export const idlFactory = ({ IDL }) => {
     'accountNumber' : IDL.Opt(IDL.Text),
     'accountHolder' : IDL.Opt(IDL.Text),
   });
+  const SiteConfig = IDL.Record({
+    'backgroundColor' : IDL.Text,
+    'tagline' : IDL.Text,
+    'primaryColor' : IDL.Text,
+    'banners' : IDL.Vec(Banner),
+    'discountPercent' : IDL.Nat,
+    'siteName' : IDL.Text,
+    'promoText' : IDL.Text,
+    'logoUrl' : IDL.Text,
+    'featuredSectionHeading' : IDL.Text,
+    'footerText' : IDL.Text,
+  });
+  const UserStats = IDL.Record({
+    'totalOrders' : IDL.Nat,
+    'usersThisMonth' : IDL.Nat,
+    'activeCustomers' : IDL.Nat,
+    'pendingOrders' : IDL.Nat,
+    'pendingTopUps' : IDL.Nat,
+    'completedOrders' : IDL.Nat,
+    'totalUsers' : IDL.Nat,
+    'totalRevenue' : IDL.Nat,
+  });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addBanner' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'addGame' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
     'addPackage' : IDL.Func(
         [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat],
         [IDL.Nat],
@@ -213,6 +305,7 @@ export const idlFactory = ({ IDL }) => {
     'getAllOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
     'getAllRedeemCodes' : IDL.Func([], [IDL.Vec(RedeemCode)], ['query']),
     'getAllTopUpRequests' : IDL.Func([], [IDL.Vec(TopUpRequest)], ['query']),
+    'getBanners' : IDL.Func([], [IDL.Vec(Banner)], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getGames' : IDL.Func([], [IDL.Vec(Game)], ['query']),
@@ -221,19 +314,34 @@ export const idlFactory = ({ IDL }) => {
     'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
     'getPackages' : IDL.Func([IDL.Nat], [IDL.Vec(DiamondPackage)], ['query']),
     'getPaymentConfig' : IDL.Func([], [IDL.Opt(PaymentConfig)], ['query']),
+    'getSiteConfig' : IDL.Func([], [IDL.Opt(SiteConfig)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
+    'getUserStats' : IDL.Func([], [UserStats], ['query']),
     'getWalletBalance' : IDL.Func([], [IDL.Nat], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'placeOrder' : IDL.Func([IDL.Text, IDL.Nat, IDL.Nat], [IDL.Nat], []),
     'redeemCode' : IDL.Func([IDL.Text], [IDL.Nat], []),
     'rejectTopUpRequest' : IDL.Func([IDL.Nat], [], []),
+    'removeBanner' : IDL.Func([IDL.Nat], [], []),
+    'removeGame' : IDL.Func([IDL.Nat], [], []),
     'removePackage' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setPaymentConfig' : IDL.Func([PaymentConfig], [], []),
+    'setSiteConfig' : IDL.Func([SiteConfig], [], []),
+    'updateBanner' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateGame' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
+        [],
+        [],
+      ),
     'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
     'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
   });

@@ -3,18 +3,6 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { InternetIdentityProvider } from "./hooks/useInternetIdentity";
 import "../index.css";
-import { getSecretFromHash } from "./utils/urlParams";
-
-// Capture admin token immediately on page load — BEFORE React renders.
-// This ensures the token is saved to localStorage even when Internet Identity
-// redirects back to the app and the hash may look different.
-(function captureAdminToken() {
-  try {
-    getSecretFromHash("caffeineAdminToken");
-  } catch {
-    // silently ignore — token capture is best-effort
-  }
-})();
 
 BigInt.prototype.toJSON = function () {
   return this.toString();
