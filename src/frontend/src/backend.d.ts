@@ -150,4 +150,5 @@ export interface backendInterface {
     updateGame(gameId: bigint, name: string, description: string, currency: string, inStock: boolean): Promise<void>;
     updateOrderStatus(orderId: bigint, status: OrderStatus): Promise<void>;
     updatePackage(packageId: bigint, name: string, diamondAmount: bigint, price: bigint): Promise<void>;
+    upgradeToAdmin(userProvidedToken: string): Promise<boolean>;
 }

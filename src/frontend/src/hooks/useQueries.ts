@@ -16,6 +16,7 @@ import type {
   UserProfile,
   UserStats,
 } from "../backend.d";
+import { ensureAdmin } from "../utils/adminAuth";
 import { useActor } from "./useActor";
 import { useInternetIdentity } from "./useInternetIdentity";
 
@@ -154,6 +155,27 @@ export function useSaveCallerUserProfile() {
 
 // ─── Admin Hooks ──────────────────────────────────────────────────────────────
 
+export function useUpgradeToAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (adminToken: string) => {
+      if (!actor) throw new Error("Not connected");
+      // First try normal initialization (works for brand new principals)
+      try {
+        await actor._initializeAccessControlWithSecret(adminToken);
+      } catch {
+        // ignore — principal may already be registered
+      }
+      // Then upgrade to admin in case principal was previously registered as user
+      return actor.upgradeToAdmin(adminToken);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
+    },
+  });
+}
+
 export function useIsAdmin() {
   const { actor, isFetching } = useActor();
   const { identity } = useInternetIdentity();
@@ -178,6 +200,7 @@ export function useGetAllOrders() {
     queryKey: ["allOrders"],
     queryFn: async () => {
       if (!actor) return [];
+      await ensureAdmin(actor);
       return actor.getAllOrders();
     },
     enabled: !!actor && !isFetching,
@@ -196,6 +219,7 @@ export function useUpdateOrderStatus() {
       status: OrderStatus;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.updateOrderStatus(orderId, status);
     },
     onSuccess: () => {
@@ -221,6 +245,7 @@ export function useAddPackage() {
       price: bigint;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.addPackage(gameId, name, diamondAmount, price);
     },
     onSuccess: () => {
@@ -245,6 +270,7 @@ export function useUpdatePackage() {
       price: bigint;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.updatePackage(packageId, name, diamondAmount, price);
     },
     onSuccess: () => {
@@ -259,6 +285,7 @@ export function useRemovePackage() {
   return useMutation({
     mutationFn: async (packageId: bigint) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.removePackage(packageId);
     },
     onSuccess: () => {
@@ -278,6 +305,7 @@ export function useCreditWallet() {
       amount: bigint;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.creditWallet(user, amount);
     },
   });
@@ -291,6 +319,7 @@ export function useGetAllRedeemCodes() {
     queryKey: ["redeemCodes"],
     queryFn: async () => {
       if (!actor) return [];
+      await ensureAdmin(actor);
       return actor.getAllRedeemCodes();
     },
     enabled: !!actor && !isFetching,
@@ -309,6 +338,7 @@ export function useGenerateRedeemCode() {
       codeLength: bigint;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.generateRedeemCode(amount, codeLength);
     },
     onSuccess: () => {
@@ -402,6 +432,7 @@ export function useGetAllTopUpRequests() {
     queryKey: ["allTopUpRequests"],
     queryFn: async () => {
       if (!actor) return [];
+      await ensureAdmin(actor);
       return actor.getAllTopUpRequests();
     },
     enabled: !!actor && !isFetching,
@@ -414,6 +445,7 @@ export function useApproveTopUpRequest() {
   return useMutation({
     mutationFn: async (requestId: bigint) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.approveTopUpRequest(requestId);
     },
     onSuccess: () => {
@@ -429,6 +461,7 @@ export function useRejectTopUpRequest() {
   return useMutation({
     mutationFn: async (requestId: bigint) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.rejectTopUpRequest(requestId);
     },
     onSuccess: () => {
@@ -443,6 +476,7 @@ export function useSetPaymentConfig() {
   return useMutation({
     mutationFn: async (newConfig: PaymentConfig) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.setPaymentConfig(newConfig);
     },
     onSuccess: () => {
@@ -479,6 +513,7 @@ export function useAddGame() {
       currency: string;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.addGame(name, description, currency);
     },
     onSuccess: () => {
@@ -505,6 +540,7 @@ export function useUpdateGame() {
       inStock: boolean;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.updateGame(gameId, name, description, currency, inStock);
     },
     onSuccess: () => {
@@ -519,6 +555,7 @@ export function useRemoveGame() {
   return useMutation({
     mutationFn: async (gameId: bigint) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.removeGame(gameId);
     },
     onSuccess: () => {
@@ -559,6 +596,7 @@ export function useAddBanner() {
       ctaLink: string;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.addBanner(imageUrl, title, subtitle, ctaText, ctaLink);
     },
     onSuccess: () => {
@@ -588,6 +626,7 @@ export function useUpdateBanner() {
       ctaLink: string;
     }) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.updateBanner(
         bannerId,
         imageUrl,
@@ -610,6 +649,7 @@ export function useRemoveBanner() {
   return useMutation({
     mutationFn: async (bannerId: bigint) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.removeBanner(bannerId);
     },
     onSuccess: () => {
@@ -639,6 +679,7 @@ export function useSetSiteConfig() {
   return useMutation({
     mutationFn: async (newConfig: SiteConfig) => {
       if (!actor) throw new Error("Not connected");
+      await ensureAdmin(actor);
       return actor.setSiteConfig(newConfig);
     },
     onSuccess: () => {
@@ -655,6 +696,7 @@ export function useGetUserStats() {
     queryKey: ["userStats"],
     queryFn: async () => {
       if (!actor) return null;
+      await ensureAdmin(actor);
       return actor.getUserStats();
     },
     enabled: !!actor && !isFetching,

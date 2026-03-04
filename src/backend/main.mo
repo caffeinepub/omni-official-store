@@ -10,6 +10,7 @@ import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Char "mo:core/Char";
 import Text "mo:core/Text";
+import Prim "mo:prim";
 
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
@@ -793,6 +794,25 @@ actor {
       completedOrders;
       totalRevenue;
       pendingTopUps;
+    };
+  };
+
+  // Allows a principal already registered as #user to upgrade to #admin 
+  // by providing the correct admin token.
+  // This is needed because _initializeAccessControlWithSecret only registers 
+  // new principals, it doesn't upgrade existing ones.
+  public shared ({ caller }) func upgradeToAdmin(userProvidedToken : Text) : async Bool {
+    switch (Prim.envVar<system>("CAFFEINE_ADMIN_TOKEN")) {
+      case (null) { false };
+      case (?adminToken) {
+        if (adminToken != "" and userProvidedToken == adminToken) {
+          accessControlState.userRoles.add(caller, #admin);
+          accessControlState.adminAssigned := true;
+          true
+        } else {
+          false
+        };
+      };
     };
   };
 };

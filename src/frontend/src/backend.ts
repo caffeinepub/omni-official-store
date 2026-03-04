@@ -233,6 +233,7 @@ export interface backendInterface {
     updateGame(gameId: bigint, name: string, description: string, currency: string, inStock: boolean): Promise<void>;
     updateOrderStatus(orderId: bigint, status: OrderStatus): Promise<void>;
     updatePackage(packageId: bigint, name: string, diamondAmount: bigint, price: bigint): Promise<void>;
+    upgradeToAdmin(userProvidedToken: string): Promise<boolean>;
 }
 import type { Order as _Order, OrderStatus as _OrderStatus, PaymentConfig as _PaymentConfig, PaymentMethod as _PaymentMethod, RedeemCode as _RedeemCode, SiteConfig as _SiteConfig, Time as _Time, TopUpRequest as _TopUpRequest, TopUpRequestStatus as _TopUpRequestStatus, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -780,6 +781,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updatePackage(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async upgradeToAdmin(arg0: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.upgradeToAdmin(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.upgradeToAdmin(arg0);
             return result;
         }
     }

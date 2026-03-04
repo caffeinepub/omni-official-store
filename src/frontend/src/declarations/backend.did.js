@@ -173,6 +173,7 @@ export const idlService = IDL.Service({
     ),
   'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
   'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
+  'upgradeToAdmin' : IDL.Func([IDL.Text], [IDL.Bool], []),
 });
 
 export const idlInitArgs = [];
@@ -344,6 +345,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'updateOrderStatus' : IDL.Func([IDL.Nat, OrderStatus], [], []),
     'updatePackage' : IDL.Func([IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat], [], []),
+    'upgradeToAdmin' : IDL.Func([IDL.Text], [IDL.Bool], []),
   });
 };
 

@@ -149,6 +149,7 @@ export interface _SERVICE {
   >,
   'updateOrderStatus' : ActorMethod<[bigint, OrderStatus], undefined>,
   'updatePackage' : ActorMethod<[bigint, string, bigint, bigint], undefined>,
+  'upgradeToAdmin' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
