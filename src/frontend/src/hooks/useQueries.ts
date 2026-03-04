@@ -1,5 +1,6 @@
 import type { Principal } from "@icp-sdk/core/principal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { backendInterface } from "../backend";
 import type {
   DiamondPackage,
   LeaderboardEntry,
@@ -12,6 +13,7 @@ import type {
   UserProfile,
 } from "../backend.d";
 import { useActor } from "./useActor";
+import { useInternetIdentity } from "./useInternetIdentity";
 
 export function useGetPackages(gameId: bigint) {
   const { actor, isFetching } = useActor();
@@ -31,6 +33,11 @@ export function useGetOrders() {
     queryKey: ["orders"],
     queryFn: async () => {
       if (!actor) return [];
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.getOrders();
     },
     enabled: !!actor && !isFetching,
@@ -43,6 +50,11 @@ export function useGetWalletBalance() {
     queryKey: ["walletBalance"],
     queryFn: async () => {
       if (!actor) return 0n;
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.getWalletBalance();
     },
     enabled: !!actor && !isFetching,
@@ -67,6 +79,11 @@ export function useGetCallerUserProfile() {
     queryKey: ["callerUserProfile"],
     queryFn: async () => {
       if (!actor) return null;
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.getCallerUserProfile();
     },
     enabled: !!actor && !isFetching,
@@ -87,6 +104,11 @@ export function usePlaceOrder() {
       packageId: bigint;
     }) => {
       if (!actor) throw new Error("Not connected");
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.placeOrder(playerId, gameId, packageId);
     },
     onSuccess: () => {
@@ -98,17 +120,32 @@ export function usePlaceOrder() {
 }
 
 export function useSaveCallerUserProfile() {
-  const { actor } = useActor();
+  const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error("Not connected");
-      return actor.saveCallerUserProfile(profile);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["callerUserProfile"] });
-    },
-  });
+  return {
+    isFetchingActor: isFetching,
+    ...useMutation({
+      mutationFn: async (profile: UserProfile) => {
+        if (!identity) throw new Error("Not connected");
+        const principalStr = identity.getPrincipal().toString();
+        const cachedActor =
+          queryClient.getQueryData<backendInterface>(["actor", principalStr]) ??
+          actor;
+        if (!cachedActor) throw new Error("Not connected");
+        // Ensure user is registered before saving profile
+        try {
+          await (cachedActor as any)._initializeAccessControlWithSecret("");
+        } catch {
+          // ignore — user may already be registered
+        }
+        return cachedActor.saveCallerUserProfile(profile);
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["callerUserProfile"] });
+      },
+    }),
+  };
 }
 
 // ─── Admin Hooks ──────────────────────────────────────────────────────────────
@@ -276,6 +313,11 @@ export function useRedeemCode() {
   return useMutation({
     mutationFn: async (code: string) => {
       if (!actor) throw new Error("Not connected");
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.redeemCode(code);
     },
     onSuccess: () => {
@@ -313,6 +355,11 @@ export function useCreateTopUpRequest() {
       utrRef: string;
     }) => {
       if (!actor) throw new Error("Not connected");
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.createTopUpRequest(amount, paymentMethod, utrRef);
     },
     onSuccess: () => {
@@ -328,6 +375,11 @@ export function useGetMyTopUpRequests() {
     queryKey: ["myTopUpRequests"],
     queryFn: async () => {
       if (!actor) return [];
+      try {
+        await (actor as any)._initializeAccessControlWithSecret("");
+      } catch {
+        // ignore — user may already be registered
+      }
       return actor.getMyTopUpRequests();
     },
     enabled: !!actor && !isFetching,

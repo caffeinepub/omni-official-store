@@ -1,56 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, LogIn, LogOut, Save, User } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Edit, LogIn, LogOut, Mail, User } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import type { UserProfile } from "../backend.d";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import {
-  useGetCallerUserProfile,
-  useSaveCallerUserProfile,
-} from "../hooks/useQueries";
+import { useGetCallerUserProfile } from "../hooks/useQueries";
 import { handleLogin } from "../utils/mobileLogin";
 
 export function AccountPage() {
   const { loginStatus, login, clear, identity, isLoggingIn, isInitializing } =
     useInternetIdentity();
   const isLoggedIn = !!identity;
+  const navigate = useNavigate();
 
   const { data: profile, isLoading } = useGetCallerUserProfile();
-  const { mutate: saveProfile, isPending: isSaving } =
-    useSaveCallerUserProfile();
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    if (profile) {
-      setName(profile.name ?? "");
-      setEmail(profile.email ?? "");
-    }
-  }, [profile]);
-
-  const handleSave = () => {
-    if (!name.trim()) {
-      toast.error("Please enter your name");
-      return;
-    }
-    const updatedProfile: UserProfile = {
-      name: name.trim(),
-      email: email.trim() || undefined,
-    };
-    saveProfile(updatedProfile, {
-      onSuccess: () => toast.success("Profile updated successfully!"),
-      onError: (err) =>
-        toast.error(
-          `Failed to update profile: ${err instanceof Error ? err.message : "Unknown error"}`,
-        ),
-    });
-  };
 
   if (!isLoggedIn) {
     return (
@@ -138,7 +103,7 @@ export function AccountPage() {
         </Card>
       </motion.div>
 
-      {/* Profile Form */}
+      {/* Profile Summary */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -146,71 +111,64 @@ export function AccountPage() {
       >
         <Card className="card-game overflow-hidden mb-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-display font-black">
-              Profile Information
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-display font-black">
+                Profile Information
+              </CardTitle>
+              <Button
+                size="sm"
+                className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 h-8 px-3 text-xs gap-1.5"
+                onClick={() => navigate({ to: "/profile/edit" })}
+                data-ocid="account.edit_profile.button"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                Edit Profile
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="p-6 pt-3 space-y-4">
+          <CardContent className="p-6 pt-3">
             {isLoading ? (
-              <>
-                <Skeleton className="h-10 w-full rounded-lg" />
-                <Skeleton className="h-10 w-full rounded-lg" />
-              </>
+              <div className="space-y-3">
+                <Skeleton className="h-5 w-3/4 rounded-md" />
+                <Skeleton className="h-4 w-1/2 rounded-md" />
+              </div>
             ) : (
-              <>
-                <div>
-                  <Label
-                    htmlFor="profile-name"
-                    className="text-sm font-semibold mb-2 block"
-                  >
-                    Display Name
-                  </Label>
-                  <Input
-                    id="profile-name"
-                    placeholder="Your display name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-input/50 border-border focus:border-primary"
-                  />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium">
+                      Display Name
+                    </div>
+                    <div className="text-sm font-semibold">
+                      {profile?.name || (
+                        <span className="text-muted-foreground italic font-normal">
+                          Not set
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label
-                    htmlFor="profile-email"
-                    className="text-sm font-semibold mb-2 block"
-                  >
-                    Email{" "}
-                    <span className="text-muted-foreground font-normal">
-                      (optional)
-                    </span>
-                  </Label>
-                  <Input
-                    id="profile-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-input/50 border-border focus:border-primary"
-                  />
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground font-medium">
+                      Email
+                    </div>
+                    <div className="text-sm font-semibold">
+                      {profile?.email || (
+                        <span className="text-muted-foreground italic font-normal">
+                          Not set
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <Button
-                  className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 h-10"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  data-ocid="account.profile.save_button"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Profile
-                    </>
-                  )}
-                </Button>
-              </>
+              </div>
             )}
           </CardContent>
         </Card>

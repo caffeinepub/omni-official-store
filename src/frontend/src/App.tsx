@@ -14,6 +14,7 @@ import { DiamondPage } from "./pages/DiamondPage";
 import { HomePage } from "./pages/HomePage";
 import { LeaderboardPage } from "./pages/LeaderboardPage";
 import { OrdersPage } from "./pages/OrdersPage";
+import { ProfileEditPage } from "./pages/ProfileEditPage";
 import { WalletPage } from "./pages/WalletPage";
 
 // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -74,6 +75,12 @@ const adminRoute = createRoute({
   component: AdminPage,
 });
 
+const profileEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/profile/edit",
+  component: ProfileEditPage,
+});
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   gameDiamondRoute,
@@ -82,6 +89,7 @@ const routeTree = rootRoute.addChildren([
   leaderboardRoute,
   accountRoute,
   adminRoute,
+  profileEditRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -138,6 +138,29 @@ type PackageFormData = {
   price: string;
 };
 
+// Default packages to seed when the store is empty
+const DEFAULT_MLBB_PACKAGES = [
+  { name: "Starter", diamondAmount: 86n, price: 75n },
+  { name: "Basic", diamondAmount: 172n, price: 149n },
+  { name: "Value", diamondAmount: 257n, price: 219n },
+  { name: "Standard", diamondAmount: 344n, price: 289n },
+  { name: "Plus", diamondAmount: 706n, price: 579n },
+  { name: "Pro", diamondAmount: 2195n, price: 1749n },
+  { name: "Elite", diamondAmount: 4390n, price: 3499n },
+  { name: "Ultimate", diamondAmount: 9288n, price: 7299n },
+];
+
+const DEFAULT_HOK_PACKAGES = [
+  { name: "Starter", diamondAmount: 100n, price: 85n },
+  { name: "Basic", diamondAmount: 200n, price: 165n },
+  { name: "Value", diamondAmount: 300n, price: 245n },
+  { name: "Standard", diamondAmount: 500n, price: 399n },
+  { name: "Plus", diamondAmount: 1000n, price: 789n },
+  { name: "Pro", diamondAmount: 2000n, price: 1549n },
+  { name: "Elite", diamondAmount: 4000n, price: 3099n },
+  { name: "Ultimate", diamondAmount: 8000n, price: 5999n },
+];
+
 function PackagesTab() {
   const [selectedGame, setSelectedGame] = useState<bigint>(1n);
   const [addOpen, setAddOpen] = useState(false);
@@ -151,9 +174,61 @@ function PackagesTab() {
   });
 
   const { data: packages, isLoading } = useGetPackages(selectedGame);
+  // Also fetch MLBB packages to detect if we need to seed (always watch game 1)
+  const { data: mlbbPackages, isLoading: mlbbLoading } = useGetPackages(1n);
   const addPackage = useAddPackage();
   const updatePackage = useUpdatePackage();
   const removePackage = useRemovePackage();
+
+  // Auto-seed default packages when store is empty
+  const [seeded, setSeeded] = useState(false);
+
+  useEffect(() => {
+    if (seeded) return;
+    if (mlbbLoading) return;
+    if (!mlbbPackages) return;
+    if (mlbbPackages.length > 0) {
+      // Already has packages — no need to seed
+      setSeeded(true);
+      return;
+    }
+
+    // Packages are empty — seed defaults for both games
+    const seedAll = async () => {
+      setSeeded(true); // prevent re-runs
+      toast.loading("Setting up default packages...", { id: "seed-toast" });
+
+      try {
+        // Seed MLBB packages (gameId = 1n)
+        for (const pkg of DEFAULT_MLBB_PACKAGES) {
+          await addPackage.mutateAsync({
+            gameId: 1n,
+            name: pkg.name,
+            diamondAmount: pkg.diamondAmount,
+            price: pkg.price,
+          });
+        }
+
+        // Seed HOK packages (gameId = 2n)
+        for (const pkg of DEFAULT_HOK_PACKAGES) {
+          await addPackage.mutateAsync({
+            gameId: 2n,
+            name: pkg.name,
+            diamondAmount: pkg.diamondAmount,
+            price: pkg.price,
+          });
+        }
+
+        toast.success("Default packages ready!", { id: "seed-toast" });
+      } catch {
+        toast.error("Failed to set up default packages. Please try again.", {
+          id: "seed-toast",
+        });
+      }
+    };
+
+    seedAll();
+  }, [mlbbPackages, mlbbLoading, seeded, addPackage.mutateAsync]);
 
   const openAdd = () => {
     setFormData({ name: "", diamondAmount: "", price: "" });
