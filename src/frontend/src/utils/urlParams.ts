@@ -182,15 +182,27 @@ export function getSecretFromHash(paramName: string): string | null {
 
   // Remove the leading #
   const hashContent = hash.substring(1);
-  const params = new URLSearchParams(hashContent);
-  const secret = params.get(paramName);
 
-  if (secret) {
-    // Store in session for persistence
-    storeSessionParameter(paramName, secret);
-    // Immediately clear the secret parameter from URL to avoid history leakage
+  // Try direct hash params first (e.g. #caffeineAdminToken=xxx)
+  const directParams = new URLSearchParams(hashContent);
+  const directSecret = directParams.get(paramName);
+  if (directSecret) {
+    storeSessionParameter(paramName, directSecret);
     clearParamFromHash(paramName);
-    return secret;
+    return directSecret;
+  }
+
+  // Try query string inside hash (e.g. #/admin?caffeineAdminToken=xxx)
+  const queryStartIndex = hashContent.indexOf("?");
+  if (queryStartIndex !== -1) {
+    const hashQuery = hashContent.substring(queryStartIndex + 1);
+    const hashParams = new URLSearchParams(hashQuery);
+    const secret = hashParams.get(paramName);
+    if (secret) {
+      storeSessionParameter(paramName, secret);
+      clearParamFromHash(paramName);
+      return secret;
+    }
   }
 
   return null;
