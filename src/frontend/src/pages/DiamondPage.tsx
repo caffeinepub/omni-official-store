@@ -137,28 +137,30 @@ export function DiamondPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Banner */}
-      <div
-        className={`relative overflow-hidden bg-gradient-to-br ${game.color} border-b border-border`}
-      >
-        <div className="absolute inset-0 opacity-20">
-          <img
-            src={game.image}
-            alt={game.name}
-            className="w-full h-full object-cover"
-          />
-        </div>
-        <div className="relative container mx-auto px-4 max-w-7xl py-10">
-          <div className="flex items-center gap-3 mb-2">
-            <Gem className="w-6 h-6 text-primary" />
-            <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+      {/* Hero Banner — full-bleed cinematic style */}
+      <div className="relative overflow-hidden min-h-[220px] md:min-h-[320px] border-b border-border">
+        {/* Full background image */}
+        <img
+          src={game.image}
+          alt={game.name}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Dark gradient overlay — strong on left/bottom, transparent on right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+
+        {/* Text content */}
+        <div className="relative z-10 container mx-auto px-4 max-w-7xl py-10 md:py-16 flex flex-col justify-end h-full min-h-[220px] md:min-h-[320px]">
+          <div className="flex items-center gap-2 mb-2">
+            <Gem className="w-5 h-5 text-primary" />
+            <span className="text-xs font-bold text-white/70 uppercase tracking-widest">
               {currency} Top Up
             </span>
           </div>
-          <h1 className="font-display text-2xl md:text-4xl font-black">
+          <h1 className="font-display text-3xl md:text-5xl font-black text-white drop-shadow-lg mb-2">
             {backendGame?.name ?? game.name}
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm md:text-base">
+          <p className="text-white/70 text-sm md:text-base max-w-md">
             Select a package, enter your Player ID, and top up instantly
           </p>
           {hasDiscount && (
@@ -258,7 +260,7 @@ export function DiamondPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {packages.map((pkg, index) => {
                   const discountedPrice = hasDiscount
                     ? calcDiscountedPrice(pkg.price, discountPercent)
@@ -273,7 +275,7 @@ export function DiamondPage() {
                       data-ocid={
                         ocidMap[index] ?? `diamond.package.item.${index + 1}`
                       }
-                      className={`diamond-package-card rounded-xl p-4 text-center ${
+                      className={`diamond-package-card relative rounded-xl p-4 py-5 text-center ${
                         selectedPackage?.id === pkg.id ? "selected" : ""
                       } ${isOutOfStock ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
                     >
@@ -289,11 +291,11 @@ export function DiamondPage() {
                           </span>
                         </div>
                       )}
-                      <div className="text-2xl mb-1">💎</div>
-                      <div className="font-display text-lg font-black text-gradient-gold">
+                      <div className="text-3xl mb-2">💎</div>
+                      <div className="font-display text-2xl font-black text-gradient-gold leading-none">
                         {Number(pkg.diamondAmount).toLocaleString()}
                       </div>
-                      <div className="text-[10px] text-muted-foreground mb-2">
+                      <div className="text-[10px] text-muted-foreground/70 mt-1 mb-2">
                         {pkg.name}
                       </div>
                       {hasDiscount && discountedPrice !== null ? (

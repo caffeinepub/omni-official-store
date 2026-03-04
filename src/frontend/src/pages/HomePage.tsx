@@ -447,7 +447,7 @@ export function HomePage() {
                 <Card
                   className={`card-game overflow-hidden group ${game.border}`}
                 >
-                  <div className="relative overflow-hidden aspect-[4/3]">
+                  <div className="relative overflow-hidden aspect-[16/9] min-h-[180px]">
                     <img
                       src={game.image}
                       alt={game.name}
@@ -456,11 +456,12 @@ export function HomePage() {
                     <div
                       className={`absolute inset-0 bg-gradient-to-t ${game.color} opacity-60`}
                     />
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-2">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/3">
                       <img
                         src={game.logo}
                         alt={`${game.badge} logo`}
-                        className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-2 border-white/30 shadow-xl backdrop-blur-sm"
+                        className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white/20 ring-2 ring-primary/40 shadow-xl backdrop-blur-sm"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).style.display =
                             "none";
