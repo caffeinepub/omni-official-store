@@ -32,13 +32,15 @@ const gameInfo: Record<
   mlbb: {
     name: "Mobile Legends: Bang Bang",
     color: "from-blue-600/20 to-indigo-900/30",
-    image: "/assets/generated/game-mlbb.dim_400x300.jpg",
+    image:
+      "https://kachingku.com/wp-content/uploads/2024/11/mlbb-web-banner46.jpg",
     gameId: 1n,
   },
   hok: {
     name: "Honor of Kings",
     color: "from-red-600/20 to-amber-900/30",
-    image: "/assets/generated/game-hok.dim_400x300.jpg",
+    image:
+      "https://cdn.pokde.net/wp-content/uploads/2024/10/hokchamps24cover.jpg",
     gameId: 2n,
   },
 };

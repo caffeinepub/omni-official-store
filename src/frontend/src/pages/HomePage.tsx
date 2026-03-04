@@ -26,7 +26,8 @@ import {
 const STATIC_BANNERS = [
   {
     id: "static-1",
-    imageUrl: "/assets/generated/banner-mlbb.dim_1200x400.jpg",
+    imageUrl:
+      "https://kachingku.com/wp-content/uploads/2024/11/mlbb-web-banner46.jpg",
     alt: "Mobile Legends Bang Bang",
     title: "Mobile Legends",
     subtitle: "Top up Diamonds & dominate the battlefield",
@@ -36,7 +37,8 @@ const STATIC_BANNERS = [
   },
   {
     id: "static-2",
-    imageUrl: "/assets/generated/banner-hok.dim_1200x400.jpg",
+    imageUrl:
+      "https://cdn.pokde.net/wp-content/uploads/2024/10/hokchamps24cover.jpg",
     alt: "Honor of Kings",
     title: "Honor of Kings",
     subtitle: "Get Diamonds & become a legendary warrior",
@@ -46,7 +48,8 @@ const STATIC_BANNERS = [
   },
   {
     id: "static-3",
-    imageUrl: "/assets/generated/banner-promo.dim_1200x400.jpg",
+    imageUrl:
+      "https://cdn.store.link/uploads/store21327/cover-image.jpg?versionId=s0a4uKg_7YqVN_DlRnYOH7El.AAIzbc3",
     alt: "Special Promotions",
     title: "Special Offers",
     subtitle: "Best rates for diamond top-ups — every day",
@@ -62,26 +65,29 @@ const STATIC_GAMES = [
     slug: "mlbb",
     name: "Mobile Legends: Bang Bang",
     subtitle: "Top up Diamonds instantly",
-    image: "/assets/generated/game-mlbb.dim_400x300.jpg",
-    logo: "/assets/generated/mlbb-logo-large.dim_300x300.png",
+    image:
+      "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
+    logo: "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
     link: "/game/mlbb",
     ocid: "game.mlbb.button",
     color: "from-blue-600/20 to-indigo-800/20",
     border: "hover:border-blue-500/60",
     badge: "MLBB",
+    bgColor: "#1a2040",
   },
   {
     id: "2",
     slug: "hok",
     name: "Honor of Kings",
     subtitle: "Top up Diamonds instantly",
-    image: "/assets/generated/game-hok.dim_400x300.jpg",
+    image: "/assets/generated/hok-logo-large.dim_300x300.png",
     logo: "/assets/generated/hok-logo-large.dim_300x300.png",
     link: "/game/hok",
     ocid: "game.hok.button",
     color: "from-red-600/20 to-amber-800/20",
     border: "hover:border-amber-500/60",
     badge: "HOK",
+    bgColor: "#1a0a00",
   },
 ];
 
@@ -179,25 +185,35 @@ type NormalisedGame = {
   border: string;
   badge: string;
   inStock: boolean;
+  bgColor?: string;
 };
 
 function normaliseGame(g: Game, index: number): NormalisedGame {
   // Map known game IDs to existing slugs/images/logos
   const knownGames: Record<
     string,
-    { slug: string; image: string; logo: string; badge: string }
+    {
+      slug: string;
+      image: string;
+      logo: string;
+      badge: string;
+      bgColor: string;
+    }
   > = {
     "1": {
       slug: "mlbb",
-      image: "/assets/generated/game-mlbb.dim_400x300.jpg",
-      logo: "/assets/generated/mlbb-logo-large.dim_300x300.png",
+      image:
+        "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
+      logo: "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
       badge: "MLBB",
+      bgColor: "#1a2040",
     },
     "2": {
       slug: "hok",
-      image: "/assets/generated/game-hok.dim_400x300.jpg",
+      image: "/assets/generated/hok-logo-large.dim_300x300.png",
       logo: "/assets/generated/hok-logo-large.dim_300x300.png",
       badge: "HOK",
+      bgColor: "#1a0a00",
     },
   };
   const known = knownGames[g.id.toString()];
@@ -207,14 +223,19 @@ function normaliseGame(g: Game, index: number): NormalisedGame {
     slug: known?.slug ?? `game-${g.id}`,
     name: g.name,
     subtitle: g.description || `Top up ${g.currency} instantly`,
-    image: known?.image ?? "/assets/generated/game-mlbb.dim_400x300.jpg",
-    logo: known?.logo ?? "/assets/generated/mlbb-logo-badge.dim_200x200.png",
+    image:
+      known?.image ??
+      "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
+    logo:
+      known?.logo ??
+      "https://static.wikia.nocookie.net/mobile-legends/images/f/fb/MLBB_icon.png/revision/latest?cb=20241013132437",
     link: `/game/${known?.slug ?? `game-${g.id}`}`,
     ocid: `game.item.${index + 1}.button`,
     color,
     border,
     badge: known?.badge ?? g.currency,
     inStock: g.inStock,
+    bgColor: known?.bgColor ?? "#0d0d0d",
   };
 }
 
@@ -242,6 +263,7 @@ export function HomePage() {
           logo: g.logo,
           inStock: true,
           ocid: `game.item.${i + 1}.button`,
+          bgColor: g.bgColor,
         }));
 
   const featuredHeading =
@@ -447,27 +469,21 @@ export function HomePage() {
                 <Card
                   className={`card-game overflow-hidden group ${game.border}`}
                 >
-                  <div className="relative overflow-hidden aspect-[16/9] min-h-[180px]">
+                  <div
+                    className="relative overflow-hidden aspect-[16/9] min-h-[200px]"
+                    style={{ backgroundColor: game.bgColor ?? "#0d0d0d" }}
+                  >
+                    {/* Game icon fills entire box */}
                     <img
                       src={game.image}
-                      alt={game.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      alt={`${game.badge} icon`}
+                      className="absolute inset-0 w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 p-4"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = game.logo;
+                      }}
                     />
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-t ${game.color} opacity-60`}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/3">
-                      <img
-                        src={game.logo}
-                        alt={`${game.badge} logo`}
-                        className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white/20 ring-2 ring-primary/40 shadow-xl backdrop-blur-sm"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display =
-                            "none";
-                        }}
-                      />
-                    </div>
+                    {/* Subtle vignette overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                     {!game.inStock && (
                       <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 text-xs font-bold rounded-md bg-red-900/70 text-red-300 backdrop-blur-sm border border-red-500/30">
@@ -476,7 +492,7 @@ export function HomePage() {
                       </div>
                     )}
                   </div>
-                  <CardContent className="p-5 pt-16">
+                  <CardContent className="p-5">
                     <h3 className="font-display text-lg font-black mb-1">
                       {game.name}
                     </h3>
