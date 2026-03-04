@@ -46,9 +46,9 @@ export function Header() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 shrink-0">
           <img
-            src="/assets/generated/omni-logo-transparent.dim_200x60.png"
+            src="/assets/uploads/WhatsApp-Image-2026-03-04-at-7.59.05-PM-1.jpeg"
             alt="Omni Official Store"
-            className="h-10 w-auto object-contain"
+            className="h-14 w-auto object-contain"
             onError={(e) => {
               const target = e.currentTarget;
               target.style.display = "none";

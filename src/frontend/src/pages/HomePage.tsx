@@ -63,6 +63,7 @@ const STATIC_GAMES = [
     name: "Mobile Legends: Bang Bang",
     subtitle: "Top up Diamonds instantly",
     image: "/assets/generated/game-mlbb.dim_400x300.jpg",
+    logo: "/assets/generated/mlbb-logo-large.dim_300x300.png",
     link: "/game/mlbb",
     ocid: "game.mlbb.button",
     color: "from-blue-600/20 to-indigo-800/20",
@@ -75,6 +76,7 @@ const STATIC_GAMES = [
     name: "Honor of Kings",
     subtitle: "Top up Diamonds instantly",
     image: "/assets/generated/game-hok.dim_400x300.jpg",
+    logo: "/assets/generated/hok-logo-large.dim_300x300.png",
     link: "/game/hok",
     ocid: "game.hok.button",
     color: "from-red-600/20 to-amber-800/20",
@@ -170,6 +172,7 @@ type NormalisedGame = {
   name: string;
   subtitle: string;
   image: string;
+  logo: string;
   link: string;
   ocid: string;
   color: string;
@@ -179,19 +182,21 @@ type NormalisedGame = {
 };
 
 function normaliseGame(g: Game, index: number): NormalisedGame {
-  // Map known game IDs to existing slugs/images
+  // Map known game IDs to existing slugs/images/logos
   const knownGames: Record<
     string,
-    { slug: string; image: string; badge: string }
+    { slug: string; image: string; logo: string; badge: string }
   > = {
     "1": {
       slug: "mlbb",
       image: "/assets/generated/game-mlbb.dim_400x300.jpg",
+      logo: "/assets/generated/mlbb-logo-large.dim_300x300.png",
       badge: "MLBB",
     },
     "2": {
       slug: "hok",
       image: "/assets/generated/game-hok.dim_400x300.jpg",
+      logo: "/assets/generated/hok-logo-large.dim_300x300.png",
       badge: "HOK",
     },
   };
@@ -203,6 +208,7 @@ function normaliseGame(g: Game, index: number): NormalisedGame {
     name: g.name,
     subtitle: g.description || `Top up ${g.currency} instantly`,
     image: known?.image ?? "/assets/generated/game-mlbb.dim_400x300.jpg",
+    logo: known?.logo ?? "/assets/generated/mlbb-logo-badge.dim_200x200.png",
     link: `/game/${known?.slug ?? `game-${g.id}`}`,
     ocid: `game.item.${index + 1}.button`,
     color,
@@ -233,6 +239,7 @@ export function HomePage() {
       ? backendGames.map(normaliseGame)
       : STATIC_GAMES.map((g, i) => ({
           ...g,
+          logo: g.logo,
           inStock: true,
           ocid: `game.item.${i + 1}.button`,
         }));
@@ -449,18 +456,26 @@ export function HomePage() {
                     <div
                       className={`absolute inset-0 bg-gradient-to-t ${game.color} opacity-60`}
                     />
-                    <div className="absolute top-3 left-3 flex items-center gap-2">
-                      <span className="px-2 py-1 text-xs font-bold rounded-md bg-black/50 text-white/90 backdrop-blur-sm border border-white/10">
-                        {game.badge}
-                      </span>
-                      {!game.inStock && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-2">
+                      <img
+                        src={game.logo}
+                        alt={`${game.badge} logo`}
+                        className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-2 border-white/30 shadow-xl backdrop-blur-sm"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display =
+                            "none";
+                        }}
+                      />
+                    </div>
+                    {!game.inStock && (
+                      <div className="absolute top-3 right-3">
                         <span className="px-2 py-1 text-xs font-bold rounded-md bg-red-900/70 text-red-300 backdrop-blur-sm border border-red-500/30">
                           Out of Stock
                         </span>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
-                  <CardContent className="p-5">
+                  <CardContent className="p-5 pt-16">
                     <h3 className="font-display text-lg font-black mb-1">
                       {game.name}
                     </h3>

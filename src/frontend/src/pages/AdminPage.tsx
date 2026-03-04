@@ -77,6 +77,7 @@ import type {
 } from "../backend.d";
 import { OrderStatus, PaymentMethod, TopUpRequestStatus } from "../backend.d";
 import { useActor } from "../hooks/useActor";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddBanner,
   useAddGame,
@@ -3182,30 +3183,46 @@ async function hashString(str: string): Promise<string> {
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
+// Login step states:
+// "password" → username/password form
+// "identity" → password OK, now connect II
+// "upgrading" → II connected, calling upgradeToAdmin
+// "done" → fully authenticated, show admin panel
+type LoginStep = "password" | "identity" | "upgrading" | "done";
+
 export function AdminPage() {
-  // Track whether the password was verified — this is the ONLY gate for admin access
-  const [passwordVerified, setPasswordVerified] = useState<boolean>(() => {
-    return sessionStorage.getItem("omni_admin_authed") === "true";
+  const { identity, login, clear, isLoggingIn, isInitializing } =
+    useInternetIdentity();
+  const { actor, isFetching: actorFetching } = useActor();
+
+  // Determine initial step: if session says authed AND identity is already loaded,
+  // skip straight to "upgrading" to verify the stored session.
+  const [loginStep, setLoginStep] = useState<LoginStep>(() => {
+    if (sessionStorage.getItem("omni_admin_authed") === "true") {
+      // Will be resolved in the useEffect below once identity/actor are ready
+      return "upgrading";
+    }
+    return "password";
   });
 
-  // Admin is authenticated as soon as the password is verified — no II required
-  const adminAuthed = passwordVerified;
+  const [passwordVerified, setPasswordVerified] = useState<boolean>(
+    () => sessionStorage.getItem("omni_admin_authed") === "true",
+  );
 
   const [enteredUsername, setEnteredUsername] = useState("");
   const [enteredPassword, setEnteredPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isVerifyingAdmin, setIsVerifyingAdmin] = useState(false);
+  const [isCheckingPwd, setIsCheckingPwd] = useState(false);
 
-  // Keep actor available for admin operations (ensureAdmin is called per-operation)
-  useActor();
-
+  // ── Step 1: Password gate ──────────────────────────────────────────────────
   const handleAdminLogin = async () => {
     if (!enteredUsername.trim() || !enteredPassword) {
       setLoginError("Please enter both username and password");
       return;
     }
     setLoginError("");
-    setIsLoggingIn(true);
+    setIsCheckingPwd(true);
     try {
       const [inputHash, correctHash] = await Promise.all([
         hashString(enteredPassword),
@@ -3215,33 +3232,119 @@ export function AdminPage() {
         enteredUsername.trim() === ADMIN_USERNAME &&
         inputHash === correctHash
       ) {
-        // Persist session so page refresh keeps admin logged in
-        sessionStorage.setItem("omni_admin_authed", "true");
-        // Also store the admin token so ensureAdmin calls can reach the backend
+        // Store the admin token BEFORE triggering II login so useActor picks it up
         localStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
         sessionStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
         setPasswordVerified(true);
+        setLoginStep("identity");
       } else {
         setLoginError("Invalid username or password");
       }
     } catch {
       setLoginError("An error occurred. Please try again.");
     } finally {
-      setIsLoggingIn(false);
+      setIsCheckingPwd(false);
     }
   };
 
+  // ── Step 2: Trigger II login ───────────────────────────────────────────────
+  const handleConnectII = () => {
+    // Token must be stored before login() is called so it survives the redirect
+    localStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
+    sessionStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
+    login();
+  };
+
+  // ── Step 3: upgradeToAdmin after identity + actor are ready ───────────────
+  // Flag to prevent double-calling upgradeToAdmin
+  const [upgradeAttemptedFlag, setUpgradeAttemptedFlag] = useState(false);
+
+  useEffect(() => {
+    if (!passwordVerified || loginStep === "password" || loginStep === "done") {
+      return;
+    }
+
+    // We need: identity present + actor ready + not already upgrading/done
+    if (!identity || actorFetching || !actor) {
+      return;
+    }
+
+    if (upgradeAttemptedFlag) return;
+
+    setUpgradeAttemptedFlag(true);
+    setLoginStep("upgrading");
+    setIsVerifyingAdmin(true);
+
+    actor
+      .upgradeToAdmin(CAFFEINE_ADMIN_TOKEN)
+      .then((success) => {
+        if (success) {
+          sessionStorage.setItem("omni_admin_authed", "true");
+          setLoginStep("done");
+        } else {
+          setLoginError("Admin token verification failed. Access denied.");
+          setLoginStep("identity");
+          setUpgradeAttemptedFlag(false);
+        }
+      })
+      .catch((err: unknown) => {
+        setLoginError(
+          `Admin verification error: ${err instanceof Error ? err.message : "Unknown error"}`,
+        );
+        setLoginStep("identity");
+        setUpgradeAttemptedFlag(false);
+      })
+      .finally(() => {
+        setIsVerifyingAdmin(false);
+      });
+  }, [
+    identity,
+    actor,
+    actorFetching,
+    passwordVerified,
+    loginStep,
+    upgradeAttemptedFlag,
+  ]);
+
+  // If we start in "upgrading" (restored session), but identity never loads
+  // (II session expired), fall back to password step after initialization
+  useEffect(() => {
+    if (
+      loginStep === "upgrading" &&
+      !isInitializing &&
+      !identity &&
+      !actorFetching
+    ) {
+      // Wait a tick, then if still no identity, send back to password
+      const timer = setTimeout(() => {
+        if (!identity) {
+          sessionStorage.removeItem("omni_admin_authed");
+          setPasswordVerified(false);
+          setLoginStep("password");
+          setUpgradeAttemptedFlag(false);
+        }
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [loginStep, isInitializing, identity, actorFetching]);
+
+  // ── Logout ────────────────────────────────────────────────────────────────
   const handleLogout = () => {
     sessionStorage.removeItem("omni_admin_authed");
+    localStorage.removeItem("caffeineAdminToken");
+    sessionStorage.removeItem("caffeineAdminToken");
     setPasswordVerified(false);
+    setLoginStep("password");
+    setUpgradeAttemptedFlag(false);
     setEnteredUsername("");
     setEnteredPassword("");
     setLoginError("");
+    clear();
   };
 
-  // ─── Login Form ──────────────────────────────────────────────────────────────
+  // ─── Step 1: Password Form ──────────────────────────────────────────────────
 
-  if (!adminAuthed) {
+  if (loginStep === "password") {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <motion.div
@@ -3333,10 +3436,10 @@ export function AdminPage() {
               <Button
                 data-ocid="admin.login.submit_button"
                 onClick={handleAdminLogin}
-                disabled={isLoggingIn}
+                disabled={isCheckingPwd}
                 className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue h-11"
               >
-                {isLoggingIn ? (
+                {isCheckingPwd ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Verifying...
@@ -3350,6 +3453,116 @@ export function AdminPage() {
               </Button>
             </CardContent>
           </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ─── Step 2: Connect Internet Identity ─────────────────────────────────────
+
+  if (loginStep === "identity") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm"
+        >
+          <Card className="card-game border border-border shadow-2xl">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 rounded-2xl gradient-blue-gold flex items-center justify-center mx-auto mb-4 glow-blue">
+                <ShieldCheck className="w-8 h-8 text-white" />
+              </div>
+              <CardTitle className="font-display text-2xl font-black">
+                Verify Admin Identity
+              </CardTitle>
+              <p className="text-muted-foreground text-sm mt-1">
+                One more step – connect with Internet Identity to authenticate
+                your admin session
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loginError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  data-ocid="admin.identity.error_state"
+                  className="text-sm text-destructive font-semibold text-center bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2"
+                >
+                  {loginError}
+                </motion.p>
+              )}
+
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Password verified ✓ — now connect your Internet Identity to
+                  authorize admin operations on the blockchain.
+                </p>
+              </div>
+
+              <Button
+                data-ocid="admin.identity.connect.button"
+                onClick={handleConnectII}
+                disabled={isLoggingIn || isInitializing}
+                className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue h-11"
+              >
+                {isLoggingIn || isInitializing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    Connect with Internet Identity
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                data-ocid="admin.identity.back.button"
+                onClick={() => {
+                  setLoginStep("password");
+                  setPasswordVerified(false);
+                  setLoginError("");
+                }}
+                className="w-full text-muted-foreground hover:text-foreground"
+              >
+                ← Back to password
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ─── Step 3: Upgrading / verifying admin role ───────────────────────────────
+
+  if (loginStep === "upgrading" || isVerifyingAdmin) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm text-center"
+        >
+          <div className="w-16 h-16 rounded-2xl gradient-blue-gold flex items-center justify-center mx-auto mb-4 glow-blue">
+            <Loader2 className="w-8 h-8 text-white animate-spin" />
+          </div>
+          <h2 className="font-display text-xl font-black mb-2">
+            Verifying admin access...
+          </h2>
+          <p
+            className="text-muted-foreground text-sm"
+            data-ocid="admin.upgrading.loading_state"
+          >
+            Please wait while we confirm your admin privileges.
+          </p>
         </motion.div>
       </div>
     );

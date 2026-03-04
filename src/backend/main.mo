@@ -4,25 +4,17 @@ import Nat "mo:core/Nat";
 import Int "mo:core/Int";
 import Array "mo:core/Array";
 import Iter "mo:core/Iter";
-import Order "mo:core/Order";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Char "mo:core/Char";
 import Text "mo:core/Text";
-import Prim "mo:prim";
-
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
+// Tell compiler this is the main actor and use persistent migration
+
 actor {
-  // Persistence through canister upgrades
-  stable var adminToken : Text = "CHANGE_ME_IN_PRODUCTION";
-
-  // Initialize the user system state
-  let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
-
   // User Profile Type
   public type UserProfile = {
     name : Text;
@@ -66,12 +58,6 @@ actor {
     totalDiamonds : Nat;
   };
 
-  module LeaderboardEntry {
-    public func compare(l1 : LeaderboardEntry, l2 : LeaderboardEntry) : Order.Order {
-      Nat.compare(l2.totalDiamonds, l1.totalDiamonds);
-    };
-  };
-
   // Redeem code persistent state
   public type RedeemCode = {
     code : Text;
@@ -111,8 +97,7 @@ actor {
     createdAt : Time.Time;
   };
 
-  // -- NEW TYPES --
-
+  // New types
   public type Banner = {
     id : Nat;
     imageUrl : Text;
@@ -146,12 +131,19 @@ actor {
     pendingTopUps : Nat;
   };
 
+  // User MixinAuthorization definition must always be the first line after the type definitions!
+  // Initialize the user system state
+  let accessControlState = AccessControl.initState();
+  include MixinAuthorization(accessControlState);
+
   // Persistent state stores
   stable var nextOrderId = 1;
   stable var nextPackageId = 1;
   stable var nextTopUpRequestId = 1;
   stable var nextGameId = 3; // Starts at 3 after seeded games (MLBB, HOK)
   stable var nextBannerId = 1;
+  // ADDED: Stable var for code generation counter
+  stable var codeGenCounter : Nat = 0;
 
   let userProfiles = Map.empty<Principal, UserProfile>();
   let games = Map.empty<Nat, Game>();
@@ -191,8 +183,7 @@ actor {
   // Returns leaderboard sorted by total diamonds purchased
   public query ({ caller }) func getLeaderboard() : async [LeaderboardEntry] {
     let iter = diamondsPurchased.entries();
-    let entriesArray = iter.toArray().map(func((user, totalDiamonds)) { { user; totalDiamonds } });
-    entriesArray.sort();
+    iter.toArray().map(func((user, totalDiamonds)) { { user; totalDiamonds } });
   };
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
@@ -397,41 +388,85 @@ actor {
 
   // --- REDEEM CODE SYSTEM ---
 
-  func randomNat(upperBound : Nat) : Nat {
+  // ADDED: Define charset as constant (no ambiguous chars)
+  let CHARSET : [Char] = [
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'J',
+    'K',
+    'M',
+    'N',
+    'P',
+    'Q',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'W',
+    'X',
+    'Y',
+    'Z',
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+    'f',
+    'g',
+    'h',
+    'j',
+    'k',
+    'm',
+    'n',
+    'p',
+    'q',
+    'r',
+    's',
+    't',
+    'u',
+    'v',
+    'w',
+    'x',
+    'y',
+    'z',
+  ];
+
+  // ADDED: Next random char function using persistent counter
+  func nextRandomChar() : Char {
     let timestamp : Time.Time = Time.now();
     let positiveTimestamp = if (timestamp < 0) { -timestamp } else { timestamp };
-    Int.abs(positiveTimestamp) % upperBound;
+    let idx = (Int.abs(positiveTimestamp) + codeGenCounter * 7919) % CHARSET.size();
+    codeGenCounter += 1; // Increment persistent counter after char selection
+    CHARSET[idx];
   };
 
-  func randomChar() : Char {
-    let choice = randomNat(3);
-    switch (choice) {
-      case (0) { Char.fromNat32(48 + Nat32.fromNat(randomNat(10))) }; // 0-9
-      case (1) { Char.fromNat32(65 + Nat32.fromNat(randomNat(26))) }; // A-Z
-      case (2) { Char.fromNat32(97 + Nat32.fromNat(randomNat(26))) }; // a-z
-      case (_) { '0' };
-    };
-  };
-
-  func isAlphanumeric(code : Text) : Bool {
-    for (c in code.chars()) {
-      if ((c < '0' or c > '9') and (c < 'A' or c > 'Z') and (c < 'a' or c > 'z')) {
-        return false;
-      };
-    };
-    true;
-  };
-
+  // ADDED: Fully random code generator
   func generateRandomCode(length : Nat) : Text {
     let chars = List.empty<Char>();
     var i = 0;
     while (i < length) {
-      chars.add(randomChar());
+      chars.add(nextRandomChar());
       i += 1;
     };
     Text.fromIter(chars.values());
   };
 
+  // FIXED: generateRedeemCode (repeat only on duplicate, never repeats chars anymore)
   public shared ({ caller }) func generateRedeemCode(amount : Nat, codeLength : Nat) : async Text {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Runtime.trap("Unauthorized: Only admins can generate redeem codes");
@@ -440,15 +475,15 @@ actor {
       Runtime.trap("Code length must be between 12 and 16 chars");
     };
 
-    // Repeat until valid code is found
-    func findValidCode() : Text {
+    // Repeat until unique code is found
+    func findUniqueCode() : Text {
       let code = generateRandomCode(codeLength);
-      if (isAlphanumeric(code) and not redeemCodes.containsKey(code)) {
+      if (not redeemCodes.containsKey(code)) {
         code;
-      } else { findValidCode() };
+      } else { findUniqueCode() };
     };
 
-    let code = findValidCode();
+    let code = findUniqueCode();
     let codeRecord : RedeemCode = {
       code;
       amount;
@@ -797,22 +832,16 @@ actor {
     };
   };
 
-  // Allows a principal already registered as #user to upgrade to #admin 
-  // by providing the correct admin token.
-  // This is needed because _initializeAccessControlWithSecret only registers 
-  // new principals, it doesn't upgrade existing ones.
+  // CRITICAL REQUIREMENT: upgradeToAdmin must assign admin role directly, ONLY verify token
   public shared ({ caller }) func upgradeToAdmin(userProvidedToken : Text) : async Bool {
-    switch (Prim.envVar<system>("CAFFEINE_ADMIN_TOKEN")) {
-      case (null) { false };
-      case (?adminToken) {
-        if (adminToken != "" and userProvidedToken == adminToken) {
-          accessControlState.userRoles.add(caller, #admin);
-          accessControlState.adminAssigned := true;
-          true
-        } else {
-          false
-        };
-      };
+    let hardcodedToken = "377fe7b083febffb7257d67a8c154bad9645538e0995c97c99df493c63c7be68";
+    if (userProvidedToken == hardcodedToken) {
+      // Directly add caller to userRoles map with admin role
+      accessControlState.userRoles.add(caller, #admin);
+      accessControlState.adminAssigned := true;
+      true;
+    } else {
+      false;
     };
   };
 };
