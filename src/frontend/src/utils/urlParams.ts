@@ -48,6 +48,23 @@ export function storeSessionParameter(key: string, value: string): void {
 }
 
 /**
+ * Stores a parameter in localStorage for persistence across sessions and browser restarts.
+ * Useful for maintaining admin tokens that must survive II redirect.
+ *
+ * @param key - The key to store the value under
+ * @param value - The value to store
+ */
+export function storeLocalParameter(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+    // Also store in sessionStorage for same-session access
+    sessionStorage.setItem(key, value);
+  } catch (error) {
+    console.warn(`Failed to store local parameter ${key}:`, error);
+  }
+}
+
+/**
  * Retrieves a parameter from sessionStorage
  *
  * @param key - The key to retrieve
@@ -168,11 +185,23 @@ function clearParamFromHash(paramName: string): void {
  * @returns The secret value if found (from hash or session), null otherwise
  */
 export function getSecretFromHash(paramName: string): string | null {
-  // Check session first to avoid unnecessary URL manipulation
+  // Check sessionStorage first (fastest path)
   const existingSecret = getSessionParameter(paramName);
   if (existingSecret !== null) {
     return existingSecret;
   }
+
+  // Check localStorage as fallback (survives tab close and II redirect)
+  try {
+    const localSecret = localStorage.getItem(paramName);
+    if (localSecret !== null) {
+      // Populate sessionStorage so future reads are fast
+      try {
+        sessionStorage.setItem(paramName, localSecret);
+      } catch (_) {}
+      return localSecret;
+    }
+  } catch (_) {}
 
   // Try to extract from hash
   const hash = window.location.hash;
@@ -186,8 +215,8 @@ export function getSecretFromHash(paramName: string): string | null {
   const secret = params.get(paramName);
 
   if (secret) {
-    // Store in session for persistence
-    storeSessionParameter(paramName, secret);
+    // Store in both storages for persistence
+    storeLocalParameter(paramName, secret);
     // Immediately clear the secret parameter from URL to avoid history leakage
     clearParamFromHash(paramName);
     return secret;

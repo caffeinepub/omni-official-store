@@ -21,16 +21,19 @@ module {
     };
   };
 
-  // First principal that calls this function becomes admin, all other principals become users.
+  // Any principal that provides the correct admin token always becomes admin.
+  // If the token is wrong or empty, register as user (but never downgrade an existing admin).
   public func initialize(state : AccessControlState, caller : Principal, adminToken : Text, userProvidedToken : Text) {
     if (caller.isAnonymous()) { return };
-    switch (state.userRoles.get(caller)) {
-      case (?_) {};
-      case (null) {
-        if (not state.adminAssigned and userProvidedToken == adminToken) {
-          state.userRoles.add(caller, #admin);
-          state.adminAssigned := true;
-        } else {
+    if (userProvidedToken != "" and userProvidedToken == adminToken) {
+      // Correct token — always grant admin on every login
+      state.userRoles.add(caller, #admin);
+      state.adminAssigned := true;
+    } else {
+      // Wrong or missing token — register as user only if not already admin
+      switch (state.userRoles.get(caller)) {
+        case (?#admin) {}; // Keep existing admin role
+        case (_) {
           state.userRoles.add(caller, #user);
         };
       };

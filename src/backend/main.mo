@@ -9,13 +9,15 @@ import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Char "mo:core/Char";
+import Text "mo:core/Text";
 
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
-(with migration = Migration.run)
 actor {
+  // Persistence through canister upgrades
+  stable var adminToken : Text = "CHANGE_ME_IN_PRODUCTION";
+
   // Initialize the user system state
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
@@ -144,11 +146,11 @@ actor {
   };
 
   // Persistent state stores
-  var nextOrderId = 1;
-  var nextPackageId = 1;
-  var nextTopUpRequestId = 1;
-  var nextGameId = 3; // Starts at 3 after seeded games (MLBB, HOK)
-  var nextBannerId = 1;
+  stable var nextOrderId = 1;
+  stable var nextPackageId = 1;
+  stable var nextTopUpRequestId = 1;
+  stable var nextGameId = 3; // Starts at 3 after seeded games (MLBB, HOK)
+  stable var nextBannerId = 1;
 
   let userProfiles = Map.empty<Principal, UserProfile>();
   let games = Map.empty<Nat, Game>();
@@ -161,8 +163,8 @@ actor {
   let banners = Map.empty<Nat, Banner>();
   let userRegistrations = Map.empty<Principal, Time.Time>();
 
-  var paymentConfig : ?PaymentConfig = null;
-  var siteConfig : SiteConfig = {
+  stable var paymentConfig : ?PaymentConfig = null;
+  stable var siteConfig : SiteConfig = {
     siteName = "Omni Official Store";
     tagline = "Instant Top-Ups for Your Favorite Games";
     logoUrl = "";

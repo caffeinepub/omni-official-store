@@ -76,6 +76,7 @@ import type {
   TopUpRequest,
 } from "../backend.d";
 import { OrderStatus, PaymentMethod, TopUpRequestStatus } from "../backend.d";
+import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
   useAddBanner,
   useAddGame,
@@ -103,6 +104,7 @@ import {
   useUpdateOrderStatus,
   useUpdatePackage,
 } from "../hooks/useQueries";
+import { storeLocalParameter } from "../utils/urlParams";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -3165,6 +3167,9 @@ function ShoppingBagIcon({ className }: { className?: string }) {
 const ADMIN_USERNAME = "omni_admin";
 // Never stored in plain text — hashed at runtime against the entered password
 const ADMIN_PASSWORD = "Omni@2024";
+// The Caffeine admin token — stored to localStorage so useActor can use it after II redirect
+const CAFFEINE_ADMIN_TOKEN =
+  "377fe7b083febffb7257d67a8c154bad9645538e0995c97c99df493c63c7be68";
 
 async function hashString(str: string): Promise<string> {
   const buf = await crypto.subtle.digest(
@@ -3179,14 +3184,72 @@ async function hashString(str: string): Promise<string> {
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
 export function AdminPage() {
-  const [adminAuthed, setAdminAuthed] = useState<boolean>(() => {
+  // Track whether the password was verified
+  const [passwordVerified, setPasswordVerified] = useState<boolean>(() => {
     return sessionStorage.getItem("omni_admin_authed") === "true";
   });
+
+  // II integration — we need a real identity for backend calls
+  const {
+    login,
+    clear,
+    identity,
+    isLoggingIn: iiLoggingIn,
+    isInitializing,
+    loginStatus,
+    loginError: iiLoginError,
+  } = useInternetIdentity();
+
+  // Admin is fully authenticated only when password verified AND II identity present
+  const adminAuthed = passwordVerified && !!identity;
 
   const [enteredUsername, setEnteredUsername] = useState("");
   const [enteredPassword, setEnteredPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Track whether we're waiting for II login to complete after password verified
+  const [waitingForII, setWaitingForII] = useState(false);
+
+  // When password was already verified on page load (sessionStorage), trigger II if not yet authenticated
+  useEffect(() => {
+    if (
+      passwordVerified &&
+      !identity &&
+      !isInitializing &&
+      !iiLoggingIn &&
+      loginStatus === "idle"
+    ) {
+      // Ensure admin token is stored so useActor picks it up after redirect
+      storeLocalParameter("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
+      sessionStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
+      setWaitingForII(true);
+      login();
+    }
+  }, [
+    passwordVerified,
+    identity,
+    isInitializing,
+    iiLoggingIn,
+    loginStatus,
+    login,
+  ]);
+
+  // Once II login completes successfully, clear the waiting state
+  useEffect(() => {
+    if (waitingForII && !!identity) {
+      setWaitingForII(false);
+    }
+  }, [waitingForII, identity]);
+
+  // If II login fails after password verification, show an error
+  useEffect(() => {
+    if (waitingForII && loginStatus === "loginError") {
+      setWaitingForII(false);
+      setLoginError(
+        "Internet Identity login failed. Please try again. (Backend calls require Internet Identity authentication.)",
+      );
+    }
+  }, [waitingForII, loginStatus]);
 
   const handleAdminLogin = async () => {
     if (!enteredUsername.trim() || !enteredPassword) {
@@ -3204,8 +3267,17 @@ export function AdminPage() {
         enteredUsername.trim() === ADMIN_USERNAME &&
         inputHash === correctHash
       ) {
+        // Save admin token to localStorage BEFORE II redirect so useActor finds it after coming back
+        storeLocalParameter("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
+        sessionStorage.setItem("caffeineAdminToken", CAFFEINE_ADMIN_TOKEN);
         sessionStorage.setItem("omni_admin_authed", "true");
-        setAdminAuthed(true);
+        setPasswordVerified(true);
+
+        if (!identity) {
+          // Need to log in with Internet Identity to get an authenticated actor
+          setWaitingForII(true);
+          login();
+        }
       } else {
         setLoginError("Invalid username or password");
       }
@@ -3218,11 +3290,119 @@ export function AdminPage() {
 
   const handleLogout = () => {
     sessionStorage.removeItem("omni_admin_authed");
-    setAdminAuthed(false);
+    setPasswordVerified(false);
+    setWaitingForII(false);
     setEnteredUsername("");
     setEnteredPassword("");
     setLoginError("");
+    clear();
   };
+
+  // ─── Waiting for II screen ────────────────────────────────────────────────────
+
+  if (passwordVerified && !identity) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm"
+        >
+          <Card className="card-game border border-border shadow-2xl">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 rounded-2xl gradient-blue-gold flex items-center justify-center mx-auto mb-4 glow-blue">
+                {iiLoggingIn || isInitializing ? (
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                ) : (
+                  <ShieldCheck className="w-8 h-8 text-white" />
+                )}
+              </div>
+              <CardTitle className="font-display text-xl font-black">
+                {iiLoggingIn
+                  ? "Opening Internet Identity…"
+                  : isInitializing
+                    ? "Initializing…"
+                    : "Connect Internet Identity"}
+              </CardTitle>
+              <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+                {iiLoggingIn
+                  ? "Complete the Internet Identity login in the popup window to access the admin panel."
+                  : isInitializing
+                    ? "Please wait while we initialize the authentication client."
+                    : "Your password was verified. You need to connect with Internet Identity so the admin panel can make authenticated backend calls."}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Show error from II */}
+              {loginError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  data-ocid="admin.login.error_state"
+                  className="text-sm text-destructive font-semibold text-center bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2"
+                >
+                  {loginError}
+                </motion.p>
+              )}
+              {iiLoginError && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm text-destructive font-semibold text-center bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2"
+                >
+                  {iiLoginError.message}
+                </motion.p>
+              )}
+
+              {/* Connect / Retry button */}
+              {!iiLoggingIn && !isInitializing && (
+                <Button
+                  data-ocid="admin.ii.connect.button"
+                  onClick={() => {
+                    storeLocalParameter(
+                      "caffeineAdminToken",
+                      CAFFEINE_ADMIN_TOKEN,
+                    );
+                    sessionStorage.setItem(
+                      "caffeineAdminToken",
+                      CAFFEINE_ADMIN_TOKEN,
+                    );
+                    setLoginError("");
+                    setWaitingForII(true);
+                    login();
+                  }}
+                  className="w-full gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue h-11"
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Connect with Internet Identity
+                </Button>
+              )}
+
+              {iiLoggingIn && (
+                <div
+                  data-ocid="admin.ii.loading_state"
+                  className="flex items-center justify-center gap-3 py-2 text-sm text-muted-foreground"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Waiting for Internet Identity…
+                </div>
+              )}
+
+              {/* Back to login link */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-center py-1"
+              >
+                ← Back to login
+              </button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 
   // ─── Login Form ──────────────────────────────────────────────────────────────
 
@@ -3333,6 +3513,11 @@ export function AdminPage() {
                   </>
                 )}
               </Button>
+
+              <p className="text-center text-xs text-muted-foreground pt-1">
+                After verifying credentials, you'll complete sign-in with
+                Internet Identity to enable all admin features.
+              </p>
             </CardContent>
           </Card>
         </motion.div>
