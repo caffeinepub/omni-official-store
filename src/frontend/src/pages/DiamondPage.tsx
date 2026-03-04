@@ -64,8 +64,8 @@ export function DiamondPage() {
 
   const { data: packages, isLoading } = useGetPackages(game.gameId);
   const { mutate: placeOrder, isPending } = usePlaceOrder();
-  const { loginStatus, login, identity } = useInternetIdentity();
-  const isLoggedIn = loginStatus === "success";
+  const { login, identity } = useInternetIdentity();
+  const isLoggedIn = !!identity;
 
   const handleTopUp = () => {
     if (!isLoggedIn) {

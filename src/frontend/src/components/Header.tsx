@@ -35,8 +35,9 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { login, clear, loginStatus, identity } = useInternetIdentity();
   const location = useLocation();
-  const isLoggedIn = loginStatus === "success";
+  const isLoggedIn = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
+  const isInitializing = loginStatus === "initializing";
   const { data: isAdmin } = useIsAdmin();
 
   return (
@@ -114,11 +115,15 @@ export function Header() {
             <Button
               size="sm"
               onClick={() => handleLogin(login)}
-              disabled={isLoggingIn}
+              disabled={isLoggingIn || isInitializing}
               data-ocid="auth.login.button"
               className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
             >
-              {isLoggingIn ? "Connecting..." : "Login"}
+              {isLoggingIn
+                ? "Connecting..."
+                : isInitializing
+                  ? "Loading..."
+                  : "Sign In"}
             </Button>
           )}
         </div>
@@ -227,10 +232,14 @@ export function Header() {
                       handleLogin(login);
                       setMobileOpen(false);
                     }}
-                    disabled={isLoggingIn}
+                    disabled={isLoggingIn || isInitializing}
                     data-ocid="auth.login.button"
                   >
-                    {isLoggingIn ? "Connecting..." : "Login"}
+                    {isLoggingIn
+                      ? "Connecting..."
+                      : isInitializing
+                        ? "Loading..."
+                        : "Sign In"}
                   </Button>
                 )}
                 {identity && (

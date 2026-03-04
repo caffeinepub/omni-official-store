@@ -708,8 +708,8 @@ function TopUpHistorySection() {
 
 export function WalletPage() {
   const { data: balance, isLoading } = useGetWalletBalance();
-  const { loginStatus, login } = useInternetIdentity();
-  const isLoggedIn = loginStatus === "success";
+  const { login, identity } = useInternetIdentity();
+  const isLoggedIn = !!identity;
 
   if (!isLoggedIn) {
     return (

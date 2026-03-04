@@ -1590,9 +1590,10 @@ function ShoppingBagIcon({ className }: { className?: string }) {
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
 export function AdminPage() {
-  const { login, loginStatus } = useInternetIdentity();
-  const isLoggedIn = loginStatus === "success";
+  const { login, loginStatus, identity } = useInternetIdentity();
+  const isLoggedIn = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
+  const isInitializing = loginStatus === "initializing";
 
   const { data: isAdmin, isLoading: checkingAdmin } = useIsAdmin();
 
@@ -1616,19 +1617,24 @@ export function AdminPage() {
           </p>
           <Button
             onClick={() => handleLogin(login)}
-            disabled={isLoggingIn}
+            disabled={isLoggingIn || isInitializing}
             className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue"
             data-ocid="auth.login.button"
           >
-            {isLoggingIn ? (
+            {isLoggingIn || isInitializing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Connecting...
+                {isInitializing ? "Loading..." : "Connecting..."}
               </>
             ) : (
-              "Login to Continue"
+              "Sign In to Continue"
             )}
           </Button>
+          {loginStatus === "loginError" && (
+            <p className="text-xs text-destructive mt-3 text-center">
+              Login failed. Please try again.
+            </p>
+          )}
         </motion.div>
       </div>
     );

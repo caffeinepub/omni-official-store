@@ -59,8 +59,8 @@ function formatDate(timestamp: bigint): string {
 
 export function OrdersPage() {
   const { data: orders, isLoading } = useGetOrders();
-  const { loginStatus, login } = useInternetIdentity();
-  const isLoggedIn = loginStatus === "success";
+  const { login, identity } = useInternetIdentity();
+  const isLoggedIn = !!identity;
 
   if (!isLoggedIn) {
     return (

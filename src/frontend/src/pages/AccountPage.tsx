@@ -16,9 +16,9 @@ import {
 import { handleLogin } from "../utils/mobileLogin";
 
 export function AccountPage() {
-  const { loginStatus, login, clear, identity, isLoggingIn } =
+  const { loginStatus, login, clear, identity, isLoggingIn, isInitializing } =
     useInternetIdentity();
-  const isLoggedIn = loginStatus === "success";
+  const isLoggedIn = !!identity;
 
   const { data: profile, isLoading } = useGetCallerUserProfile();
   const { mutate: saveProfile, isPending: isSaving } =
@@ -66,27 +66,35 @@ export function AccountPage() {
           <h2 className="font-display text-2xl font-black mb-2">
             Welcome Back
           </h2>
-          <p className="text-muted-foreground text-sm mb-6">
-            Login with Internet Identity to access your account
+          <p className="text-muted-foreground text-sm mb-1">
+            Sign in to access your account
+          </p>
+          <p className="text-xs text-muted-foreground/70 mb-6">
+            Supports Google, passkey, or phone number via Internet Identity
           </p>
           <Button
             className="w-full gradient-blue-gold text-white font-bold border-0 glow-blue h-11"
             onClick={() => handleLogin(login)}
-            disabled={isLoggingIn}
+            disabled={isLoggingIn || isInitializing}
             data-ocid="auth.login.button"
           >
-            {isLoggingIn ? (
+            {isLoggingIn || isInitializing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Connecting...
+                {isInitializing ? "Loading..." : "Connecting..."}
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4 mr-2" />
-                Login with Internet Identity
+                Sign In
               </>
             )}
           </Button>
+          {loginStatus === "loginError" && (
+            <p className="text-xs text-destructive mt-3 text-center">
+              Login failed. Please try again.
+            </p>
+          )}
         </motion.div>
       </div>
     );
