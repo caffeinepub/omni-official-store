@@ -158,23 +158,56 @@ function clearParamFromHash(paramName: string): void {
 }
 
 /**
+ * Stores a parameter in localStorage for cross-session persistence.
+ * Used for admin tokens that must survive redirects and page reloads.
+ */
+export function storeLocalParameter(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn(`Failed to store local parameter ${key}:`, error);
+  }
+}
+
+/**
+ * Retrieves a parameter from localStorage.
+ */
+export function getLocalParameter(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.warn(`Failed to retrieve local parameter ${key}:`, error);
+    return null;
+  }
+}
+
+/**
  * Gets a secret from the URL hash fragment only (more secure than query params)
  * Hash fragments aren't sent to servers or logged in access logs
  * The hash is immediately cleared from the URL after extraction to prevent history leakage
  *
  * Usage: https://yourapp.com/#secret=xxx
+ *       https://yourapp.com/admin#caffeineAdminToken=xxx
  *
  * @param paramName - The name of the secret parameter
- * @returns The secret value if found (from hash or session), null otherwise
+ * @returns The secret value if found (from hash, localStorage, or sessionStorage), null otherwise
  */
 export function getSecretFromHash(paramName: string): string | null {
-  // Check session first to avoid unnecessary URL manipulation
+  // 1. Check localStorage first (most persistent — survives redirect)
+  const localSecret = getLocalParameter(paramName);
+  if (localSecret !== null) {
+    return localSecret;
+  }
+
+  // 2. Check sessionStorage as fallback
   const existingSecret = getSessionParameter(paramName);
   if (existingSecret !== null) {
+    // Promote to localStorage for better persistence
+    storeLocalParameter(paramName, existingSecret);
     return existingSecret;
   }
 
-  // Try to extract from hash
+  // 3. Try to extract from hash
   const hash = window.location.hash;
   if (!hash || hash.length <= 1) {
     return null;
@@ -183,26 +216,32 @@ export function getSecretFromHash(paramName: string): string | null {
   // Remove the leading #
   const hashContent = hash.substring(1);
 
-  // Try direct hash params first (e.g. #caffeineAdminToken=xxx)
+  // Handle two hash formats:
+  // Format A: #caffeineAdminToken=xxx  (token directly in hash)
+  // Format B: #/route?caffeineAdminToken=xxx (token as query param in hash)
+  let secret: string | null = null;
+
+  // Try format A: parse the whole hash as URLSearchParams
   const directParams = new URLSearchParams(hashContent);
-  const directSecret = directParams.get(paramName);
-  if (directSecret) {
-    storeSessionParameter(paramName, directSecret);
-    clearParamFromHash(paramName);
-    return directSecret;
+  secret = directParams.get(paramName);
+
+  if (!secret) {
+    // Try format B: look for ? in hash
+    const queryStartIndex = hashContent.indexOf("?");
+    if (queryStartIndex !== -1) {
+      const hashQuery = hashContent.substring(queryStartIndex + 1);
+      const hashQueryParams = new URLSearchParams(hashQuery);
+      secret = hashQueryParams.get(paramName);
+    }
   }
 
-  // Try query string inside hash (e.g. #/admin?caffeineAdminToken=xxx)
-  const queryStartIndex = hashContent.indexOf("?");
-  if (queryStartIndex !== -1) {
-    const hashQuery = hashContent.substring(queryStartIndex + 1);
-    const hashParams = new URLSearchParams(hashQuery);
-    const secret = hashParams.get(paramName);
-    if (secret) {
-      storeSessionParameter(paramName, secret);
-      clearParamFromHash(paramName);
-      return secret;
-    }
+  if (secret) {
+    // Store in both localStorage and sessionStorage for maximum persistence
+    storeLocalParameter(paramName, secret);
+    storeSessionParameter(paramName, secret);
+    // Immediately clear the secret parameter from URL to avoid history leakage
+    clearParamFromHash(paramName);
+    return secret;
   }
 
   return null;

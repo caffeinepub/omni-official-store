@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Principal } from "@icp-sdk/core/principal";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Copy,
@@ -1669,8 +1670,13 @@ export function AdminPage() {
   const isLoggedIn = !!identity;
   const isLoggingIn = loginStatus === "logging-in";
   const isInitializing = loginStatus === "initializing";
+  const queryClient = useQueryClient();
 
-  const { data: isAdmin, isLoading: checkingAdmin } = useIsAdmin();
+  const {
+    data: isAdmin,
+    isLoading: checkingAdmin,
+    refetch: refetchAdmin,
+  } = useIsAdmin();
 
   // Not logged in
   if (!isLoggedIn) {
@@ -1729,6 +1735,13 @@ export function AdminPage() {
 
   // Not admin
   if (!isAdmin) {
+    const handleRetry = async () => {
+      // Invalidate all queries so actor re-initialises with token
+      queryClient.removeQueries({ queryKey: ["isAdmin"] });
+      await queryClient.invalidateQueries({ queryKey: ["actor"] });
+      await refetchAdmin();
+    };
+
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <motion.div
@@ -1743,9 +1756,18 @@ export function AdminPage() {
           <h1 className="font-display text-2xl font-black mb-2 text-destructive">
             Access Denied
           </h1>
-          <p className="text-muted-foreground text-sm">
-            You don't have admin privileges to access this page.
+          <p className="text-muted-foreground text-sm mb-6">
+            You don't have admin privileges. If you just logged in via the admin
+            link, click Retry below.
           </p>
+          <Button
+            data-ocid="admin.retry.button"
+            onClick={handleRetry}
+            className="gradient-blue-gold text-white font-bold border-0 hover:opacity-90 glow-blue w-full"
+          >
+            <Loader2 className="w-4 h-4 mr-2" />
+            Retry Admin Access
+          </Button>
         </motion.div>
       </div>
     );

@@ -152,13 +152,19 @@ export function useSaveCallerUserProfile() {
 
 export function useIsAdmin() {
   const { actor, isFetching } = useActor();
+  const { identity } = useInternetIdentity();
+  // Include the principal in the query key so the result is never served from
+  // cache when the logged-in user changes (e.g. after Internet Identity redirect).
+  const principalKey = identity?.getPrincipal().toString() ?? "anon";
   return useQuery<boolean>({
-    queryKey: ["isAdmin"],
+    queryKey: ["isAdmin", principalKey],
     queryFn: async () => {
       if (!actor) return false;
       return actor.isCallerAdmin();
     },
     enabled: !!actor && !isFetching,
+    // Never serve a cached false — always re-check when the actor or identity changes
+    staleTime: 0,
   });
 }
 
